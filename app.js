@@ -26,7 +26,7 @@ let stanGracza = {
 // Zmienna przechowująca identyfikator pętli czasu
 let interwalProdukcji = null;
 
-// --- REJESTRARJA NOWEGO GRACZA + TWORZENIE WIOSKI ---
+// --- REJESTRACJA NOWEGO GRACZA + TWORZENIE WIOSKI ---
 btnZarejestruj.addEventListener("click", async () => {
     const email = emailInput.value;
     const password = hasloInput.value;
@@ -177,7 +177,7 @@ async function obliczCzasOffline() {
         stanGracza.surowce.wheat = zaktualizowaneSurowce.wheat;
         stanGracza.surowce.water = zaktualizowaneSurowce.water;
         stanGracza.surowce.iron_ore = zaktualizowaneSurowce.iron_ore;
-        stanGracza.surowce.coal = zaktualowaneSurowce.coal;
+        stanGracza.surowce.coal = zaktualizowaneSurowce.coal;
         stanGracza.wioska.last_update = nowyCzasISO;
 
         aktualizujInterfejs();
