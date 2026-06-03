@@ -1,4 +1,4 @@
-﻿// Połączenie z Twoim Supabase
+// Połączenie z Twoim Supabase
 const SUPABASE_URL = "https://avofpueaxoxsfefsuskn.supabase.co";
 const SUPABASE_KEY = "sb_publishable_PMPJWyxglYFIHVkcRqBKYQ_s-k9CmVl";
 const spClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
