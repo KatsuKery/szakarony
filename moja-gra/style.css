@@ -1,0 +1,156 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #f0f3f4;
+}
+
+.grid-kontener {
+    display: flex;
+    gap: 40px;
+    margin-top: 20px;
+}
+
+.panel {
+    border: 1px solid #ccc;
+    padding: 15px;
+    border-radius: 5px;
+    background: #f9f9f9;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+strong {
+    color: #2c3e50;
+}
+
+/* --- PASEK NAWIGACJI (ZAK£ADKI) --- */
+.nawigacja-gra {
+    display: flex;
+    gap: 10px;
+    margin: 20px 0;
+    border-bottom: 2px solid #bdc3c7;
+    padding-bottom: 10px;
+}
+
+.btn-zakladka {
+    padding: 10px 20px;
+    font-size: 1em;
+    background-color: #ecf0f1;
+    border: 1px solid #bdc3c7;
+    border-radius: 5px 5px 0 0;
+    cursor: pointer;
+    font-weight: bold;
+    color: #7f8c8d;
+    transition: all 0.2s;
+}
+
+    .btn-zakladka:hover {
+        background-color: #e2e6e7;
+        color: #2c3e50;
+    }
+
+    .btn-zakladka.aktywna {
+        background-color: #34495e;
+        color: white;
+        border-color: #34495e;
+    }
+
+/* --- SYSTEM UKRYWANIA SEKCJI --- */
+.ukryty {
+    display: none !important;
+}
+
+/* --- SEKCJA BUDYNKÓW --- */
+.budynek-wiersz {
+    border-bottom: 1px solid #eee;
+    padding: 10px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.budynek-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.btn-budowy {
+    padding: 5px 10px;
+    background-color: #2ecc71;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+    .btn-budowy:hover {
+        background-color: #27ae60;
+    }
+
+.koszt-tekst {
+    font-size: 0.85em;
+    color: #7f8c8d;
+}
+
+/* --- STYLE SYSTEMU MAPY ŒWIATA --- */
+#map-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 50px);
+    grid-gap: 4px;
+    margin: 20px 0;
+    justify-content: center;
+}
+
+.map-cell {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    cursor: pointer;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    transition: transform 0.1s;
+    user-select: none;
+}
+
+    .map-cell:hover {
+        transform: scale(1.05);
+    }
+
+.my-village {
+    background-color: #4caf50;
+}
+
+.enemy-village {
+    background-color: #f44336;
+}
+
+.empty-field {
+    background-color: #e0e0e0;
+}
+
+#map-cell-detail {
+    background: #f9f9f9;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin-top: 10px;
+}
+
+    #map-cell-detail button {
+        margin-top: 8px;
+        padding: 4px 10px;
+        background-color: #e67e22;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+        #map-cell-detail button:hover {
+            background-color: #d35400;
+        }
