@@ -1,4 +1,4 @@
-﻿import { spClient } from './config.js'; // ODBLOKOWANY IMPORT BAZY DANYCH!
+import { spClient } from './config.js'; // ODBLOKOWANY IMPORT BAZY DANYCH!
 import * as api from './api.js';
 import * as ui from './ui.js';
 import * as engine from './engine.js';
@@ -80,8 +80,46 @@ async function odswiezDaneZ_Bazy() {
     if (!interwalProdukcji) odpalZegarProdukcji();
 
     if (!window.zegarSekundowyUI) {
-        window.zegarSekundowyUI = setInterval(() => {
-            if (stanGracza.id) ui.aktualizujInterfejs(stanGracza);
+        window.zegarSekundowyUI = setInterval(async () => {
+            if (!stanGracza.id) return;
+
+            // 1. Aktualizacja samego widoku co 1s
+            ui.aktualizujInterfejs(stanGracza);
+
+            // 2. Sprawdzanie co 1s czy budowa lub rekrutacja dobiegła końca
+            const teraz = new Date();
+            let zaktualizowanoCos = false;
+
+            // Sprawdzenie budynków
+            const doUkonczenia = stanGracza.kolejka.filter(q => new Date(q.finish_time) <= teraz);
+            if (doUkonczenia.length > 0) {
+                for (const q of doUkonczenia) {
+                    await api.aktualizuj('village_buildings', { [q.building_type]: stanGracza.budynki[q.building_type] + 1 }, 'village_id', stanGracza.id);
+                    await api.usunZkolejki(q.id);
+                }
+                zaktualizowanoCos = true;
+            }
+
+            // Sprawdzenie wojska
+            const doUkonczeniaWojsko = stanGracza.kolejkaWojsko.filter(q => new Date(q.finish_time) <= teraz);
+            if (doUkonczeniaWojsko.length > 0) {
+                for (const q of doUkonczeniaWojsko) {
+                    const obecnaIlosc = stanGracza.jednostki[q.unit_type] || 0;
+                    await spClient.from('village_units').upsert({
+                        village_id: stanGracza.id,
+                        unit_type: q.unit_type,
+                        quantity: obecnaIlosc + q.quantity
+                    });
+                    await api.usunZkolejkiWojska(q.id);
+                }
+                zaktualizowanoCos = true;
+            }
+
+            // Jeśli coś ukończono, pobierz nowe dane, co odświeży całą grę i wyczyści kolejkę ze stanu
+            if (zaktualizowanoCos) {
+                await odswiezDaneZ_Bazy();
+            }
+
         }, 1000);
     }
 }
@@ -91,7 +129,6 @@ function odpalZegarProdukcji() {
 
     interwalProdukcji = setInterval(async () => {
         if (!stanGracza.surowce) return;
-        const teraz = new Date();
 
         for (const [kod, cfg] of Object.entries(BALANS_BUDYNKOW)) {
             if (cfg.resProd && stanGracza.budynki[kod]) {
@@ -102,35 +139,6 @@ function odpalZegarProdukcji() {
 
         await api.aktualizuj('village_resources', stanGracza.surowce, 'village_id', stanGracza.id);
         ui.aktualizujInterfejs(stanGracza);
-
-        let zaktualizowanoCos = false;
-
-        const doUkonczenia = stanGracza.kolejka.filter(q => new Date(q.finish_time) <= teraz);
-        if (doUkonczenia.length > 0) {
-            for (const q of doUkonczenia) {
-                await api.aktualizuj('village_buildings', { [q.building_type]: stanGracza.budynki[q.building_type] + 1 }, 'village_id', stanGracza.id);
-                await api.usunZkolejki(q.id);
-            }
-            zaktualizowanoCos = true;
-        }
-
-        const doUkonczeniaWojsko = stanGracza.kolejkaWojsko.filter(q => new Date(q.finish_time) <= teraz);
-        if (doUkonczeniaWojsko.length > 0) {
-            for (const q of doUkonczeniaWojsko) {
-                const obecnaIlosc = stanGracza.jednostki[q.unit_type] || 0;
-                await spClient.from('village_units').upsert({
-                    village_id: stanGracza.id,
-                    unit_type: q.unit_type,
-                    quantity: obecnaIlosc + q.quantity
-                });
-                await api.usunZkolejkiWojska(q.id);
-            }
-            zaktualizowanoCos = true;
-        }
-
-        if (zaktualizowanoCos) {
-            await odswiezDaneZ_Bazy();
-        }
 
     }, 60000);
 }
