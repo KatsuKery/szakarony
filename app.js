@@ -144,7 +144,8 @@ async function odswiezDaneZ_Bazy() {
                 zaktualizowanoCos = true;
             }
 
-            if (await sprawdzMaszerujaceWojska(stanGracza.id)) {
+            // POPRAWKA: Przekazujemy ID Wioski, a nie ID Użytkownika
+            if (await sprawdzMaszerujaceWojska(stanGracza.wioska.id)) {
                 zaktualizowanoCos = true;
             }
 

@@ -1,8 +1,11 @@
-import { spClient } from './config.js';
+﻿import { spClient } from './config.js';
 import { BALANS_JEDNOSTEK } from './units.js';
 
 // 1. FUNKCJA WYSYŁAJĄCA ATAK
 export async function przygotujIWyslijAtak(stanGracza, targetVillageId, wybraneJednostki) {
+    // KLUCZOWA ZMIANA: Używamy ID wioski, a nie ID użytkownika
+    const villageId = stanGracza.wioska.id;
+
     const wojskoDoWyslania = {};
     let iloscWojskaLacznie = 0;
 
@@ -31,7 +34,7 @@ export async function przygotujIWyslijAtak(stanGracza, targetVillageId, wybraneJ
         for (const [kod, ilosc] of Object.entries(wojskoDoWyslania)) {
             noweJednostki[kod] -= ilosc;
             updates.push({
-                village_id: stanGracza.id,
+                village_id: villageId, // Używamy Village ID
                 unit_type: kod,
                 quantity: noweJednostki[kod]
             });
@@ -48,7 +51,7 @@ export async function przygotujIWyslijAtak(stanGracza, targetVillageId, wybraneJ
         const czasDotarcia = new Date(Date.now() + czasMarszuSekundy * 1000).toISOString();
 
         const { error: moveError } = await spClient.from('troop_movements').insert([{
-            village_from_id: stanGracza.id,
+            village_from_id: villageId, // Używamy Village ID
             village_to_id: targetVillageId,
             units: wojskoDoWyslania,
             mission_type: 'attack',
@@ -70,7 +73,8 @@ export async function przygotujIWyslijAtak(stanGracza, targetVillageId, wybraneJ
 }
 
 // 2. FUNKCJA OBLICZAJĄCA WALKĘ (Silnik Bitewny)
-async function rozstrzygnijBitwe(ruch, stanGraczaId) {
+// Tu stanGraczaId to poprawny Village ID przekazywany z pętli
+async function rozstrzygnijBitwe(ruch, villageId) {
     const { data: cel } = await spClient.from('villages').select('*').eq('id', ruch.village_to_id).single();
 
     let silaAtaku = 0;
@@ -131,7 +135,7 @@ async function rozstrzygnijBitwe(ruch, stanGraczaId) {
             try {
                 await spClient.from('villages').delete().eq('id', cel.id);
             } catch (err) {
-                console.warn("Błąd usuwania wioski NPC (może być brak uprawnień RLS):", err);
+                console.warn("Błąd usuwania wioski NPC:", err);
             }
         }
 
@@ -153,13 +157,13 @@ async function rozstrzygnijBitwe(ruch, stanGraczaId) {
 }
 
 // 3. GŁÓWNA FUNKCJA SILNIKA
-export async function sprawdzMaszerujaceWojska(stanGraczaId) {
-    if (!stanGraczaId) return false;
+export async function sprawdzMaszerujaceWojska(villageId) {
+    if (!villageId) return false;
     const teraz = new Date().toISOString();
 
     const { data: ruchy } = await spClient.from('troop_movements')
         .select('*')
-        .eq('village_from_id', stanGraczaId)
+        .eq('village_from_id', villageId)
         .lte('finish_time', teraz);
 
     if (!ruchy || ruchy.length === 0) return false;
@@ -168,7 +172,7 @@ export async function sprawdzMaszerujaceWojska(stanGraczaId) {
 
     for (const ruch of ruchy) {
         if (ruch.mission_type === 'attack') {
-            await rozstrzygnijBitwe(ruch, stanGraczaId);
+            await rozstrzygnijBitwe(ruch, villageId);
             zaktualizowanoCos = true;
         }
         else if (ruch.mission_type === 'return') {
@@ -178,7 +182,7 @@ export async function sprawdzMaszerujaceWojska(stanGraczaId) {
 
             const { data: jednostkiBazy } = await spClient.from('village_units')
                 .select('unit_type, quantity')
-                .eq('village_id', stanGraczaId);
+                .eq('village_id', villageId);
 
             const mapaJednostek = {};
             if (jednostkiBazy) jednostkiBazy.forEach(j => mapaJednostek[j.unit_type] = j.quantity);
@@ -186,7 +190,7 @@ export async function sprawdzMaszerujaceWojska(stanGraczaId) {
             const updates = [];
             for (const [kod, ilosc] of Object.entries(powracajaceWojsko)) {
                 const nowaIlosc = (mapaJednostek[kod] || 0) + ilosc;
-                updates.push({ village_id: stanGraczaId, unit_type: kod, quantity: nowaIlosc });
+                updates.push({ village_id: villageId, unit_type: kod, quantity: nowaIlosc });
             }
 
             await spClient.from('village_units').upsert(updates);
@@ -194,14 +198,14 @@ export async function sprawdzMaszerujaceWojska(stanGraczaId) {
             if (Object.keys(lup).length > 0) {
                 const { data: currRes } = await spClient.from('village_resources')
                     .select('*')
-                    .eq('village_id', stanGraczaId)
+                    .eq('village_id', villageId)
                     .single();
 
                 if (currRes) {
                     for (const res in lup) {
                         currRes[res] = (currRes[res] || 0) + lup[res];
                     }
-                    await spClient.from('village_resources').update(currRes).eq('village_id', stanGraczaId);
+                    await spClient.from('village_resources').update(currRes).eq('village_id', villageId);
                 }
             }
 
