@@ -1,4 +1,4 @@
-import { spClient } from './config.js';
+﻿import { spClient } from './config.js';
 import * as api from './api.js';
 import * as ui from './ui.js';
 import * as engine from './engine.js';
@@ -77,15 +77,23 @@ async function odswiezDaneZ_Bazy() {
 function odpalZegarProdukcji() {
     if (interwalProdukcji) clearInterval(interwalProdukcji);
 
+    // Zmieniamy interwał na 60 000 ms (1 minuta)
     interwalProdukcji = setInterval(async () => {
         if (!stanGracza.surowce) return;
 
         // 1. Naliczanie surowców
         for (const [kod, cfg] of Object.entries(BALANS_BUDYNKOW)) {
             if (cfg.resProd && stanGracza.budynki[kod]) {
-                stanGracza.surowce[cfg.resProd] += (stanGracza.budynki[kod] * cfg.prodBaza);
+                let przyrost = stanGracza.budynki[kod] * cfg.prodBaza;
+                stanGracza.surowce[cfg.resProd] += Math.floor(przyrost);
             }
         }
+
+        // --- ZAPIS DO BAZY DANYCH ---
+        // Wysyłamy cały obiekt surowców do bazy, aby zapisać zmiany
+        await api.aktualizuj('village_resources', stanGracza.surowce, 'village_id', stanGracza.id);
+
+        // Odświeżamy interfejs dopiero po zapisie
         ui.aktualizujInterfejs(stanGracza);
 
         // 2. Sprawdzanie kolejek budowy
@@ -99,7 +107,7 @@ function odpalZegarProdukcji() {
             }
             await odswiezDaneZ_Bazy();
         }
-    }, 1000);
+    }, 60000); // 60000 ms = 60 sekund (1 minuta)
 }
 
 // --- GLOBALNE FUNKCJE DLA HTML ---

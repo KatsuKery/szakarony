@@ -1,3 +1,4 @@
+/* --- OGÓLNE --- */
 body {
     font-family: Arial, sans-serif;
     margin: 20px;
@@ -64,14 +65,10 @@ strong {
     border-bottom: 1px solid #eee;
     padding: 10px 0;
     display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-.budynek-info {
-    display: flex;
+    flex-direction: row; /* Zmienione na wiersz dla czytelnoœci */
     justify-content: space-between;
     align-items: center;
+    gap: 15px;
 }
 
 .btn-budowy {
@@ -87,6 +84,10 @@ strong {
     .btn-budowy:hover {
         background-color: #27ae60;
     }
+
+button {
+    cursor: pointer;
+}
 
 .koszt-tekst {
     font-size: 0.85em;
@@ -122,10 +123,12 @@ strong {
 
 .my-village {
     background-color: #4caf50;
+    color: white;
 }
 
 .enemy-village {
     background-color: #f44336;
+    color: white;
 }
 
 .empty-field {
@@ -154,3 +157,10 @@ strong {
         #map-cell-detail button:hover {
             background-color: #d35400;
         }
+
+/* --- RESPONSYWNOŒÆ --- */
+@media (max-width: 600px) {
+    .grid-kontener {
+        flex-direction: column;
+    }
+}
