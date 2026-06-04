@@ -1,8 +1,11 @@
 // config.js
+// config.js
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
 export const SUPABASE_URL = "https://avofpueaxoxsfefsuskn.supabase.co";
 export const SUPABASE_KEY = "sb_publishable_PMPJWyxglYFIHVkcRqBKYQ_s-k9CmVl";
 
-export const spClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+export const spClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 export const BUDYNKI_FRAKCYJNE = {
     ludzie: ['iron_mine', 'silver_shaft', 'cathedral'],

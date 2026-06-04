@@ -1,4 +1,5 @@
-﻿import * as api from './api.js';
+﻿import { spClient } from './config.js'; // Importuj bezpośrednio
+import * as api from './api.js';
 import * as ui from './ui.js';
 import * as engine from './engine.js';
 import { BALANS_BUDYNKOW } from './config.js';
