@@ -53,6 +53,14 @@ export function aktualizujInterfejs(stan) {
         }
     }
 
+    // --- WSPÓLNY SŁOWNIK IKON DLA CAŁEJ GRY ---
+    const ikony = {
+        wood: '🪵', stone: '🪨', coal: '🔥', food: '🍞', gold: '💰', pop: '👥', population: '👥',
+        iron: '⛏️', silver: '🥈', relics: '🏺', mithril: '🛡️', runestones: '🪨', ale: '🍺',
+        corpses: '🦴', blood: '🩸', black_frost: '❄️', elderwood: '🌳', crystals: '💎', stardust: '✨',
+        bones: '💀', hides: '⛺', tusks: '🐗', sulfur: '🌋', obsidian: '🪨', chaos_flame: '🔥'
+    };
+
     // --- RENDEROWANIE BUDYNKÓW ---
     const kontenerBudynkow = document.getElementById("kontener-budynkow");
     if (kontenerBudynkow) {
@@ -70,7 +78,7 @@ export function aktualizujInterfejs(stan) {
 
         for (const [nazwaKat, budynki] of Object.entries(grupy)) {
             if (budynki.length === 0) continue;
-            kontenerBudynkow.innerHTML += `<h3 style="margin: 20px 0 5px 0; border-bottom: 2px solid #ccc;">${nazwaKat}</h3>`;
+            kontenerBudynkow.innerHTML += `<h3 style="margin: 20px 0 10px 0; border-bottom: 2px solid #ccc; padding-bottom: 5px; color: #2c3e50;">${nazwaKat}</h3>`;
 
             for (const { kod, config } of budynki) {
                 const lvl = stan.budynki[kod] || 0;
@@ -78,15 +86,37 @@ export function aktualizujInterfejs(stan) {
                 const czas = obliczCzasBudowy(kod, lvl, poziomRatusza);
                 const budowa = stan.kolejka.find(q => q.building_type === kod);
 
+                // Dynamiczne koszty z ikonkami
+                let kosztyTekst = Object.keys(koszt)
+                    .filter(k => koszt[k] > 0)
+                    .map(k => `${ikony[k] || ''}${koszt[k]}`)
+                    .join(' ');
+
+                // Generowanie opisu efektu budynku
+                let efektTekst = `<br><small style="color: #7f8c8d;">Rozwija infrastrukturę osady.</small>`; // Domyślny tekst
+                if (config.resProd) {
+                    const obecnaProd = lvl * config.prodBaza * 60;
+                    const nowaProd = (lvl + 1) * config.prodBaza * 60;
+                    efektTekst = `<br><small style="color: #27ae60; font-weight: bold;">Produkcja: ${obecnaProd} ${ikony[config.resProd] || ''}/h ➔ ${nowaProd} ${ikony[config.resProd] || ''}/h</small>`;
+                }
+
+                // Przyciski akcji
                 let przycisk = budowa
-                    ? `<button disabled>Budowa: ${Math.max(0, Math.floor((new Date(budowa.finish_time) - new Date()) / 1000))}s</button>`
-                    : `<button onclick="window.rozbudujBudynek('${kod}')">Rozbuduj</button>`;
+                    ? `<button disabled style="width: 100%; padding: 7px; background: #bdc3c7; color: white; border: none; border-radius: 3px; cursor: not-allowed; font-weight: bold;">
+                        Budowa: ${Math.max(0, Math.floor((new Date(budowa.finish_time) - new Date()) / 1000))}s
+                       </button>`
+                    : `<button onclick="window.rozbudujBudynek('${kod}')" style="width: 100%; padding: 7px; background: #2980b9; color: white; border: none; border-radius: 3px; cursor: pointer; font-weight: bold;">
+                        Rozbuduj
+                       </button>`;
 
                 kontenerBudynkow.innerHTML += `
-                    <div class="budynek-wiersz">
-                        <div><strong>${config.name}</strong> (lvl ${lvl})</div>
-                        <div class="budynek-akcje" style="text-align: right;">
-                            <div style="font-size: 0.8em; margin-bottom: 5px;">🪵${koszt.wood} 🪨${koszt.stone} | ${czas >= 60 ? Math.floor(czas / 60) + 'm' : czas + 's'}</div>
+                    <div class="budynek-wiersz" style="padding: 15px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 5px; background: #fff; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="flex: 1;">
+                            <strong style="font-size: 1.1em; color: #2c3e50;">${config.name}</strong> <span style="color:#2980b9; font-weight:bold;">(Poziom: ${lvl})</span>
+                            ${efektTekst}
+                        </div>
+                        <div class="budynek-akcje" style="text-align: right; min-width: 180px;">
+                            <div style="font-size: 0.85em; margin-bottom: 8px; color: #34495e;">Koszty: ${kosztyTekst} | ⏱️${czas >= 60 ? Math.floor(czas / 60) + 'm ' + (czas % 60) + 's' : czas + 's'}</div>
                             ${przycisk}
                         </div>
                     </div>`;
@@ -98,13 +128,6 @@ export function aktualizujInterfejs(stan) {
     const kontenerWojska = document.getElementById("kontener-wojska");
     if (kontenerWojska) {
         kontenerWojska.innerHTML = "";
-
-        const ikony = {
-            wood: '🪵', stone: '🪨', coal: '🔥', food: '🍞', gold: '💰', pop: '👥',
-            iron: '⛏️', silver: '🥈', relics: '🏺', mithril: '🛡️', runestones: '🪨', ale: '🍺',
-            corpses: '🦴', blood: '🩸', black_frost: '❄️', elderwood: '🌳', crystals: '💎', stardust: '✨',
-            bones: '💀', hides: '⛺', tusks: '🐗', sulfur: '🌋', obsidian: '🪨', chaos_flame: '🔥'
-        };
 
         const wszystkieSurowceKeys = Object.keys(ikony);
         const isPremium = stan.wioska.is_premium || false;
@@ -128,14 +151,12 @@ export function aktualizujInterfejs(stan) {
 
             const posiadane = stan.jednostki && stan.jednostki[kod] ? stan.jednostki[kod] : 0;
 
-            // --- PRZELICZNIK MAX (Naprawiony błąd "pop" vs "population") ---
             let maxMozliwe = Infinity;
             let maKoszty = false;
 
             wszystkieSurowceKeys.forEach(res => {
                 if (config[res] && config[res] > 0) {
                     maKoszty = true;
-                    // Jeśli jednostka wymaga 'pop', szukaj 'population' w bazie
                     const kluczBazy = (res === 'pop') ? 'population' : res;
                     const posiadaneRes = stan.surowce[kluczBazy] || 0;
 
@@ -161,9 +182,9 @@ export function aktualizujInterfejs(stan) {
                 .join(' ');
 
             kontenerWojska.innerHTML += `
-                <div class="budynek-wiersz" style="padding: 15px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 5px; background: #fff;">
+                <div class="budynek-wiersz" style="padding: 15px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 5px; background: #fff; display: flex; justify-content: space-between; align-items: center;">
                     <div style="flex: 1;">
-                        <strong style="font-size: 1.1em;">${config.name}</strong> <span style="color:#27ae60; font-weight:bold;">(Masz: ${posiadane})</span>
+                        <strong style="font-size: 1.1em; color: #2c3e50;">${config.name}</strong> <span style="color:#27ae60; font-weight:bold;">(Masz: ${posiadane})</span>
                         ${tekstKolejki}
                         <br><small style="color: #7f8c8d;">Rola: ${config.role} | ⚔️${config.att} Atak | 🛡️${config.def} Obrona | 🐎Szybkość: ${config.speed}m/pole</small>
                         <div style="font-size: 0.85em; margin-top: 5px; color: #34495e;">Koszt jedn.: ${kosztyTekst} | ⏱️${config.time}s</div>
