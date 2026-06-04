@@ -110,7 +110,6 @@ export function aktualizujInterfejs(stan) {
         const isPremium = stan.wioska.is_premium || false;
         const maxSlots = isPremium ? 3 : 1;
 
-        // Nagłówek informujący o statusie konta Premium i zajętych slotach w kolejce szkolenia
         let aktualneTaski = stan.kolejkaWojsko ? stan.kolejkaWojsko.length : 0;
         kontenerWojska.innerHTML += `
             <div style="background: #f1f2f6; padding: 10px; border-radius: 5px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid ${isPremium ? '#f1c40f' : '#7f8c8d'};">
@@ -129,21 +128,23 @@ export function aktualizujInterfejs(stan) {
 
             const posiadane = stan.jednostki && stan.jednostki[kod] ? stan.jednostki[kod] : 0;
 
-            // --- PRZELICZNIK MAX ---
+            // --- PRZELICZNIK MAX (Naprawiony błąd "pop" vs "population") ---
             let maxMozliwe = Infinity;
             let maKoszty = false;
 
             wszystkieSurowceKeys.forEach(res => {
                 if (config[res] && config[res] > 0) {
                     maKoszty = true;
-                    const posiadaneRes = stan.surowce[res] || 0;
+                    // Jeśli jednostka wymaga 'pop', szukaj 'population' w bazie
+                    const kluczBazy = (res === 'pop') ? 'population' : res;
+                    const posiadaneRes = stan.surowce[kluczBazy] || 0;
+
                     const ileZtego = Math.floor(posiadaneRes / config[res]);
                     if (ileZtego < maxMozliwe) maxMozliwe = ileZtego;
                 }
             });
             if (!maKoszty || maxMozliwe === Infinity) maxMozliwe = 0;
 
-            // Renderowanie statusu odliczania kolejki szkolenia wojskowego
             const zleceniaWojska = stan.kolejkaWojsko ? stan.kolejkaWojsko.filter(q => q.unit_type === kod) : [];
             let tekstKolejki = '';
 
