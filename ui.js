@@ -147,6 +147,14 @@ export function aktualizujInterfejs(stan) {
     // --- RENDEROWANIE KOSZAR ---
     const kontenerWojska = document.getElementById("kontener-wojska");
     if (kontenerWojska) {
+        // 1. ZAPAMIĘTYWANIE STANU ZANIM WYZERUJEMY HTML
+        const zapamietaneWartosci = {};
+        kontenerWojska.querySelectorAll('input[type="number"]').forEach(input => {
+            zapamietaneWartosci[input.id] = input.value;
+        });
+        // Zapamiętujemy też, czy gracz ma kursor w którymś polu (żeby mu nie przerywało pisania)
+        const aktywnyElementId = document.activeElement ? document.activeElement.id : null;
+
         kontenerWojska.innerHTML = "";
 
         const wszystkieSurowceKeys = Object.keys(ikony);
@@ -155,16 +163,16 @@ export function aktualizujInterfejs(stan) {
 
         let aktualneTaski = stan.kolejkaWojsko ? stan.kolejkaWojsko.length : 0;
         kontenerWojska.innerHTML += `
-            <div style="background: rgba(241, 242, 246, 0.95); padding: 10px; border-radius: 5px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid ${isPremium ? '#f1c40f' : '#7f8c8d'}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <div>
-                    Status konta: <strong style="color: ${isPremium ? '#f39c12' : '#2c3e50'};">${isPremium ? '👑 PREMIUM' : '👤 ZWYKŁE'}</strong>
-                    <br><small style="color: #7f8c8d;">Kolejka rekrutacji: <strong>${aktualneTaski} / ${maxSlots}</strong> slotów</small>
-                </div>
-                <button onclick="window.przelaczPremium()" style="background: ${isPremium ? '#e74c3c' : '#f1c40f'}; color: ${isPremium ? 'white' : 'black'}; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 0.85em; font-weight: bold;">
-                    ${isPremium ? 'Wyłącz Premium (Test)' : 'Włącz Premium (Test)'}
-                </button>
-            </div>
-        `;
+            <div style="background: rgba(241, 242, 246, 0.95); padding: 10px; border-radius: 5px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid ${isPremium ? '#f1c40f' : '#7f8c8d'}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <div>
+                    Status konta: <strong style="color: ${isPremium ? '#f39c12' : '#2c3e50'};">${isPremium ? '👑 PREMIUM' : '👤 ZWYKŁE'}</strong>
+                    <br><small style="color: #7f8c8d;">Kolejka rekrutacji: <strong>${aktualneTaski} / ${maxSlots}</strong> slotów</small>
+                </div>
+                <button onclick="window.przelaczPremium()" style="background: ${isPremium ? '#e74c3c' : '#f1c40f'}; color: ${isPremium ? 'white' : 'black'}; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 0.85em; font-weight: bold;">
+                    ${isPremium ? 'Wyłącz Premium (Test)' : 'Włącz Premium (Test)'}
+                </button>
+            </div>
+        `;
 
         for (const [kod, config] of Object.entries(BALANS_JEDNOSTEK)) {
             if (config.faction !== frakcja) continue;
@@ -201,28 +209,38 @@ export function aktualizujInterfejs(stan) {
                 .map(k => `${ikony[k]}${config[k]}`)
                 .join(' ');
 
+            // 2. ODTWARZANIE WPISANEJ WARTOŚCI
+            const inputId = `ile-${kod}`;
+            const odzyskanaWartosc = zapamietaneWartosci[inputId] !== undefined ? zapamietaneWartosci[inputId] : 1;
+
             kontenerWojska.innerHTML += `
-                <div class="budynek-wiersz" style="padding: 15px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.95); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <div style="flex: 1;">
-                        <strong style="font-size: 1.1em; color: #2c3e50;">${config.name}</strong> <span style="color:#27ae60; font-weight:bold;">(Masz: ${posiadane})</span>
-                        ${tekstKolejki}
-                        <br><small style="color: #7f8c8d;">Rola: ${config.role} | ⚔️${config.att} Atak | 🛡️${config.def} Obrona | 🐎Szybkość: ${config.speed}m/pole</small>
-                        <div style="font-size: 0.85em; margin-top: 5px; color: #34495e;">Koszt jedn.: ${kosztyTekst} | ⏱️${config.time}s</div>
-                    </div>
-                    <div class="budynek-akcje" style="text-align: right; min-width: 180px;">
-                        <div style="margin-bottom: 8px;">
-                            <input type="number" id="ile-${kod}" value="1" min="1" max="${maxMozliwe}" style="width: 60px; padding: 5px; text-align: center; border-radius: 3px; border: 1px solid #ccc;">
-                            <span onclick="document.getElementById('ile-${kod}').value = ${maxMozliwe}" style="cursor: pointer; text-decoration: underline; font-size: 0.85em; color: #2980b9; margin-left: 5px; font-weight: bold;">
-                                (Max: ${maxMozliwe})
-                            </span>
-                        </div>
-                        <button onclick="window.rekrutujJednostke('${kod}', parseInt(document.getElementById('ile-${kod}').value) || 1)" 
-                                style="width: 100%; padding: 7px; background: #27ae60; color: white; border: none; border-radius: 3px; cursor: pointer; font-weight: bold;"
-                                ${maxMozliwe === 0 ? 'disabled style="background:#bdc3c7; cursor:not-allowed;"' : ''}>
-                            Rekrutuj
-                        </button>
-                    </div>
-                </div>`;
+                <div class="budynek-wiersz" style="padding: 15px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.95); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <div style="flex: 1;">
+                        <strong style="font-size: 1.1em; color: #2c3e50;">${config.name}</strong> <span style="color:#27ae60; font-weight:bold;">(Masz: ${posiadane})</span>
+                        ${tekstKolejki}
+                        <br><small style="color: #7f8c8d;">Rola: ${config.role} | ⚔️${config.att} Atak | 🛡️${config.def} Obrona | 🐎Szybkość: ${config.speed}m/pole</small>
+                        <div style="font-size: 0.85em; margin-top: 5px; color: #34495e;">Koszt jedn.: ${kosztyTekst} | ⏱️${config.time}s</div>
+                    </div>
+                    <div class="budynek-akcje" style="text-align: right; min-width: 180px;">
+                        <div style="margin-bottom: 8px;">
+                                                        <input type="number" id="${inputId}" value="${odzyskanaWartosc}" min="1" max="${maxMozliwe}" style="width: 60px; padding: 5px; text-align: center; border-radius: 3px; border: 1px solid #ccc;">
+                            <span onclick="document.getElementById('${inputId}').value = ${maxMozliwe}" style="cursor: pointer; text-decoration: underline; font-size: 0.85em; color: #2980b9; margin-left: 5px; font-weight: bold;">
+                                (Max: ${maxMozliwe})
+                            </span>
+                        </div>
+                        <button onclick="window.rekrutujJednostke('${kod}', parseInt(document.getElementById('${inputId}').value) || 1)" 
+                                style="width: 100%; padding: 7px; background: #27ae60; color: white; border: none; border-radius: 3px; cursor: pointer; font-weight: bold;"
+                                ${maxMozliwe === 0 ? 'disabled style="background:#bdc3c7; cursor:not-allowed;"' : ''}>
+                            Rekrutuj
+                        </button>
+                    </div>
+                </div>`;
+        }
+
+        // 3. PRZYWRACANIE KURZORA (FOCUS) JEŚLI GRACZ WŁAŚNIE WPISYWAŁ LICZBĘ
+        if (aktywnyElementId) {
+            const inputPoOdswiezeniu = document.getElementById(aktywnyElementId);
+            if (inputPoOdswiezeniu) inputPoOdswiezeniu.focus();
         }
     }
 }
