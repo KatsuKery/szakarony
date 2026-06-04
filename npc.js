@@ -1,5 +1,4 @@
-﻿// npc.js
-import { spClient } from './config.js';
+﻿import { spClient } from './config.js';
 
 const ROZMIAR_MAPY = 50; // Kafelki od 1 do 50
 const MAX_OBOZOW = 5;
@@ -25,7 +24,8 @@ export async function rozsypObozyNPC(ilosc) {
             is_premium: false,
             is_npc: true,
             npc_tier: tier,
-            last_update: new Date().toISOString()
+            last_update: new Date().toISOString(),
+            owner_id: null // KLUCZOWA ZMIANA: Wyraźnie mówimy bazie, że to NPC i nie ma właściciela
         });
     }
 
@@ -55,7 +55,6 @@ export async function sprawdzIGenerujNPC() {
         console.log(`[System Respawn] Obozów: ${obecnaIlosc}/${MAX_OBOZOW}. Odradzam ${brakuje}...`);
         await rozsypObozyNPC(brakuje);
     } else {
-        // Zostawiam ten log, żebyś w konsoli widział, że skrypt działa poprawnie w tle
         console.log(`[System Respawn] Mapa stabilna (obozów: ${obecnaIlosc}/${MAX_OBOZOW}).`);
     }
 }

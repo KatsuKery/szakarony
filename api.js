@@ -1,14 +1,22 @@
 import { spClient } from './config.js';
 
-export async function pobierzDane(id) {
-    const { data: vData } = await spClient.from('villages').select('*').eq('id', id).single();
-    const { data: rData } = await spClient.from('village_resources').select('*').eq('village_id', id).single();
-    const { data: bData } = await spClient.from('village_buildings').select('*').eq('village_id', id).single();
-    const { data: qData } = await spClient.from('construction_queue').select('*').eq('village_id', id).order('finish_time', { ascending: true });
-    const { data: uData } = await spClient.from('village_units').select('unit_type, quantity').eq('village_id', id);
+export async function pobierzDane(userId) {
+    // 1. ZnajdŸ wioskê, która nale¿y do tego u¿ytkownika (owner_id)
+    const { data: vData } = await spClient.from('villages').select('*').eq('owner_id', userId).single();
+
+    // Jeœli gracz jeszcze nie ma wioski, zwróæ null
+    if (!vData) return { wioska: null };
+
+    // 2. U¿yj unikalnego ID tej wioski do pobrania reszty danych
+    const villageId = vData.id;
+
+    const { data: rData } = await spClient.from('village_resources').select('*').eq('village_id', villageId).single();
+    const { data: bData } = await spClient.from('village_buildings').select('*').eq('village_id', villageId).single();
+    const { data: qData } = await spClient.from('construction_queue').select('*').eq('village_id', villageId).order('finish_time', { ascending: true });
+    const { data: uData } = await spClient.from('village_units').select('unit_type, quantity').eq('village_id', villageId);
 
     // Pobieranie kolejki szkolenia wojska
-    const { data: uqData } = await spClient.from('unit_queue').select('*').eq('village_id', id).order('finish_time', { ascending: true });
+    const { data: uqData } = await spClient.from('unit_queue').select('*').eq('village_id', villageId).order('finish_time', { ascending: true });
 
     const jednostki = {};
     if (uData) {

@@ -1,10 +1,10 @@
-﻿import { spClient } from './config.js'; // ODBLOKOWANY IMPORT BAZY DANYCH!
+﻿import { spClient } from './config.js';
 import * as api from './api.js';
 import * as ui from './ui.js';
 import * as engine from './engine.js';
 import { BALANS_BUDYNKOW } from './config.js';
 import { BALANS_JEDNOSTEK } from './units.js';
-import { sprawdzIGenerujNPC } from './npc.js'; // Zmieniony import pod nowy system NPC
+import { sprawdzIGenerujNPC } from './npc.js';
 import { przygotujIWyslijAtak, sprawdzMaszerujaceWojska } from './military.js';
 
 let stanGracza = { id: null, wioska: null, surowce: null, budynki: null, kolejka: [], jednostki: {}, kolejkaWojsko: [] };
@@ -27,28 +27,28 @@ document.getElementById("btn-potwierdz-frakcje").addEventListener("click", async
     if (error) return alert(error.message);
 
     await api.insert('villages', {
-        id: auth.user.id,
+        owner_id: auth.user.id,
         name: "Osada " + email.split('@')[0],
-        pos_x: Math.floor(Math.random() * 50) + 1, // Zmieniono na 1-50, aby pasowało do siatki NPC
+        pos_x: Math.floor(Math.random() * 50) + 1,
         pos_y: Math.floor(Math.random() * 50) + 1,
         faction: frakcja,
         last_update: new Date().toISOString(),
         is_premium: false
     });
 
+    const { data: vData } = await spClient.from('villages').select('id').eq('owner_id', auth.user.id).single();
+    const vId = vData.id;
+
     await api.insert('village_resources', {
-        village_id: auth.user.id,
+        village_id: vId,
         wood: 1000, stone: 1000, coal: 1000, food: 1000, gold: 1000, population: 1000, knowledge: 1000, essence: 1000,
-        iron: 1000, silver: 1000, relics: 1000,
-        mithril: 1000, runestones: 1000, ale: 1000,
-        corpses: 1000, blood: 1000, black_frost: 1000,
-        elderwood: 1000, crystals: 1000, stardust: 1000,
-        bones: 1000, hides: 1000, tusks: 1000,
-        sulfur: 1000, obsidian: 1000, chaos_flame: 1000
+        iron: 1000, silver: 1000, relics: 1000, mithril: 1000, runestones: 1000, ale: 1000,
+        corpses: 1000, blood: 1000, black_frost: 1000, elderwood: 1000, crystals: 1000, stardust: 1000,
+        bones: 1000, hides: 1000, tusks: 1000, sulfur: 1000, obsidian: 1000, chaos_flame: 1000
     });
 
     await api.insert('village_buildings', {
-        village_id: auth.user.id, town_hall: 1, lumberjack: 1, quarry: 1, coal_mine: 1, farm: 1, houses: 1
+        village_id: vId, town_hall: 1, lumberjack: 1, quarry: 1, coal_mine: 1, farm: 1, houses: 1
     });
 
     alert("Konto utworzone! Możesz się zalogować.");
@@ -71,16 +71,14 @@ document.getElementById("btn-zaloguj").addEventListener("click", async () => {
     document.getElementById("sekcja-gra").style.display = "block";
     alert("Witaj w swojej osadzie!");
 
-    // --- START SILNIKA RESPAWNU NPC ---
     await sprawdzIGenerujNPC();
-
     setInterval(async () => {
         if (stanGracza.id) {
             await sprawdzIGenerujNPC();
             const wiochy = await api.fetchNearbyVillages(stanGracza.wioska.pos_x, stanGracza.wioska.pos_y);
             ui.renderujMape(stanGracza, wiochy, ui.pokazSzczegolyPola);
         }
-    }, 120000); // Co 2 minuty
+    }, 120000);
 });
 
 // ==========================================
@@ -89,23 +87,20 @@ document.getElementById("btn-zaloguj").addEventListener("click", async () => {
 async function odswiezDaneZ_Bazy() {
     if (!stanGracza.id) return;
     const dane = await api.pobierzDane(stanGracza.id);
+    if (!dane.wioska) return;
+
     stanGracza = { id: stanGracza.id, ...dane };
-
     ui.aktualizujInterfejs(stanGracza);
-
-    const wiochy = await api.fetchNearbyVillages(stanGracza.wioska.pos_x, stanGracza.wioska.pos_y);
-    ui.renderujMape(stanGracza, wiochy, ui.pokazSzczegolyPola);
+    ui.renderujMape(stanGracza, await api.fetchNearbyVillages(stanGracza.wioska.pos_x, stanGracza.wioska.pos_y), ui.pokazSzczegolyPola);
 
     if (!interwalProdukcji) odpalZegarProdukcji();
 
     if (!window.zegarSekundowyUI) {
         window.zegarSekundowyUI = setInterval(async () => {
             if (!stanGracza.id) return;
-
-            // 1. Aktualizacja samego widoku co 1s
             ui.aktualizujInterfejs(stanGracza);
 
-            // 2. Sprawdzanie co 1s czy różne akcje dobiegły końca
+            const vId = stanGracza.wioska.id;
             const teraz = new Date();
             let zaktualizowanoCos = false;
 
@@ -114,7 +109,7 @@ async function odswiezDaneZ_Bazy() {
             if (doUkonczenia.length > 0) {
                 for (const q of doUkonczenia) {
                     const aktualnyPoziom = stanGracza.budynki[q.building_type] || 0;
-                    await api.aktualizuj('village_buildings', { [q.building_type]: aktualnyPoziom + 1 }, 'village_id', stanGracza.id);
+                    await api.aktualizuj('village_buildings', { [q.building_type]: aktualnyPoziom + 1 }, 'village_id', vId);
                     await api.usunZkolejki(q.id);
                 }
                 zaktualizowanoCos = true;
@@ -126,22 +121,18 @@ async function odswiezDaneZ_Bazy() {
                 for (const q of doUkonczeniaWojsko) {
                     const obecnaIlosc = stanGracza.jednostki[q.unit_type] || 0;
                     await spClient.from('village_units').upsert({
-                        village_id: stanGracza.id,
-                        unit_type: q.unit_type,
-                        quantity: obecnaIlosc + q.quantity
+                        village_id: vId, unit_type: q.unit_type, quantity: obecnaIlosc + q.quantity
                     });
                     await api.usunZkolejkiWojska(q.id);
                 }
                 zaktualizowanoCos = true;
             }
 
-            // --- SPRAWDZENIE MASZERUJĄCYCH WOJSK I WYNIKÓW BITEW ---
-            const ruchyZaktualizowano = await sprawdzMaszerujaceWojska(stanGracza.id);
-            if (ruchyZaktualizowano) {
+            // --- SPRAWDZENIE MASZERUJĄCYCH WOJSK ---
+            if (await sprawdzMaszerujaceWojska(stanGracza.id)) {
                 zaktualizowanoCos = true;
             }
 
-            // --- Odświeżenie, jeśli cokolwiek się zmieniło ---
             if (zaktualizowanoCos) {
                 await odswiezDaneZ_Bazy();
             }
@@ -163,7 +154,7 @@ function odpalZegarProdukcji() {
             }
         }
 
-        await api.aktualizuj('village_resources', stanGracza.surowce, 'village_id', stanGracza.id);
+        await api.aktualizuj('village_resources', stanGracza.surowce, 'village_id', stanGracza.wioska.id);
         ui.aktualizujInterfejs(stanGracza);
 
     }, 60000);
@@ -189,11 +180,11 @@ window.rozbudujBudynek = async (typ) => {
         surowceDoAktualizacji[surowiec] = stanGracza.surowce[surowiec];
     }
 
-    await api.aktualizuj('village_resources', surowceDoAktualizacji, 'village_id', stanGracza.id);
+    await api.aktualizuj('village_resources', surowceDoAktualizacji, 'village_id', stanGracza.wioska.id);
 
     const czasBudowy = engine.obliczCzasBudowy(typ, lvl, stanGracza.budynki.town_hall);
     await api.insert('construction_queue', {
-        village_id: stanGracza.id,
+        village_id: stanGracza.wioska.id,
         building_type: typ,
         target_level: lvl + 1,
         finish_time: new Date(Date.now() + czasBudowy * 1000).toISOString()
@@ -205,20 +196,16 @@ window.rozbudujBudynek = async (typ) => {
 window.wyslijAtak = async (targetVillageId) => {
     if (!stanGracza.id) return;
 
-    // Pobieramy wpisane wartości ze wszystkich okienek formularza wojska
     const wybraneJednostki = {};
     document.querySelectorAll('input[id^="wyslij-"]').forEach(input => {
         const kodJednostki = input.id.replace('wyslij-', '');
         wybraneJednostki[kodJednostki] = input.value;
     });
 
-    // Przekazujemy brudną robotę do naszego nowego modułu military.js
     const sukces = await przygotujIWyslijAtak(stanGracza, targetVillageId, wybraneJednostki);
 
-    // Jeśli atak wyszedł pomyślnie, odświeżamy UI żeby zaktualizować licznik posiadanych wojsk
     if (sukces) {
         await odswiezDaneZ_Bazy();
-        // Wizualna informacja dla gracza
         document.getElementById('detail-info').innerHTML = '<p style="color: #27ae60; font-weight: bold; font-size: 1.2em; text-align: center; padding: 20px;">Armia jest w drodze! <br>Spodziewaj się wieści wkrótce.</p>';
     }
 };
@@ -267,7 +254,7 @@ window.rekrutujJednostke = async function (kod, ilosc) {
     }
 
     try {
-        await spClient.from('village_resources').update(surowceDoAktualizacji).eq('village_id', stanGracza.id);
+        await spClient.from('village_resources').update(surowceDoAktualizacji).eq('village_id', stanGracza.wioska.id);
 
         let bazaCzasu = Date.now();
         if (stanGracza.kolejkaWojsko && stanGracza.kolejkaWojsko.length > 0) {
@@ -279,7 +266,7 @@ window.rekrutujJednostke = async function (kod, ilosc) {
         const ostatecznyFinishTime = new Date(bazaCzasu + czasSzkoleniaTotal * 1000).toISOString();
 
         await api.insert('unit_queue', {
-            village_id: stanGracza.id,
+            village_id: stanGracza.wioska.id,
             unit_type: kod,
             quantity: ilosc,
             finish_time: ostatecznyFinishTime
@@ -302,7 +289,7 @@ window.przelaczPremium = async function () {
         const { error } = await spClient
             .from('villages')
             .update({ is_premium: nowyStatus })
-            .eq('id', stanGracza.id);
+            .eq('id', stanGracza.wioska.id);
 
         if (error) throw error;
         alert(`Status Premium został zmieniony! Obecnie: ${nowyStatus ? 'AKTYWNE' : 'NIEAKTYWNE'}`);
