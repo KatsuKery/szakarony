@@ -58,23 +58,15 @@ btnZarejestruj.addEventListener("click", async () => {
 
     if (villageError) return alert("Błąd tworzenia wioski: " + villageError.message);
 
-    // Inicjalizacja pełnego arsenału 26 zasobów
     const { error: resError } = await spClient.from('village_resources').insert({
         village_id: userId,
-        // Uniwersalne
         wood: 150, stone: 120, coal: 50, food: 100,
         gold: 50, population: 10, knowledge: 0, essence: 0,
-        // Ludzie
         iron: 0, silver: 0, relics: 0,
-        // Krasnoludy
         mithril: 0, runestones: 0, ale: 0,
-        // Nieumarli
         corpses: 0, blood: 0, black_frost: 0,
-        // Elfy
         elderwood: 0, crystals: 0, stardust: 0,
-        // Orkowie
         bones: 0, hides: 0, tusks: 0,
-        // Demony
         sulfur: 0, obsidian: 0, chaos_flame: 0
     });
 
@@ -153,7 +145,7 @@ async function obliczCzasOffline() {
         if (config.resProd) {
             const lvl = stanGracza.budynki[kodBudynku] || 0;
             const przyrostNaSekunde = lvl * config.prodBaza;
-            wyprodukowano[config.resProd] = przyrostNaSekunde * roznicaSekund;
+            wyprodukowano[config.resProd] += przyrostNaSekunde * roznicaSekund;
         }
     }
 
@@ -180,12 +172,12 @@ async function obliczCzasOffline() {
 
 // --- FUNKCJA ODŚWIEŻAJĄCA ELEMENTY INTERFEJSU ---
 function aktualizujInterfejs() {
+    if (!stanGracza.wioska) return;
     document.getElementById("nazwa-wioski").innerText = stanGracza.wioska.name;
     document.getElementById("wioska-x").innerText = stanGracza.wioska.pos_x;
     document.getElementById("wioska-y").innerText = stanGracza.wioska.pos_y;
     document.getElementById("wioska-frakcja").innerText = stanGracza.wioska.faction || "Nieznana";
 
-    // Odświeżenie Uniwersalnych i globalnych surowców
     document.getElementById("res-wood").innerText = Math.floor(stanGracza.surowce.wood || 0);
     document.getElementById("res-stone").innerText = Math.floor(stanGracza.surowce.stone || 0);
     document.getElementById("res-coal").innerText = Math.floor(stanGracza.surowce.coal || 0);
@@ -195,21 +187,17 @@ function aktualizujInterfejs() {
     document.getElementById("res-knowledge").innerText = Math.floor(stanGracza.surowce.knowledge || 0);
     document.getElementById("res-essence").innerText = Math.floor(stanGracza.surowce.essence || 0);
 
-    // Mechanika Ukrywania i Pokazywania Surowców Frakcyjnych
     const frakcja = stanGracza.wioska.faction;
     const wszystkieFrakcje = ['ludzie', 'krasnoludy', 'nieumarli', 'elfy', 'orkowie', 'demony'];
 
-    // Najpierw ukrywamy wszystkie bloki
     wszystkieFrakcje.forEach(f => {
         const blok = document.getElementById(`frakcja-${f}`);
         if (blok) blok.style.display = 'none';
     });
 
-    // Potem pokazujemy tylko blok należący do gracza
     const aktywnyBlok = document.getElementById(`frakcja-${frakcja}`);
     if (aktywnyBlok) aktywnyBlok.style.display = 'flex';
 
-    // Aktualizacja liczników w zależności od frakcji
     if (frakcja === "ludzie") {
         document.getElementById("res-iron").innerText = Math.floor(stanGracza.surowce.iron || 0);
         document.getElementById("res-silver").innerText = Math.floor(stanGracza.surowce.silver || 0);
@@ -236,7 +224,6 @@ function aktualizujInterfejs() {
         document.getElementById("res-chaos_flame").innerText = Math.floor(stanGracza.surowce.chaos_flame || 0);
     }
 
-    // Odświeżenie wskaźników produkcji (tych na zielono przy podstawowych surowcach)
     for (const [kodBudynku, config] of Object.entries(BALANS_BUDYNKOW)) {
         if (config.resProd) {
             const lvl = stanGracza.budynki[kodBudynku] || 0;
@@ -246,8 +233,8 @@ function aktualizujInterfejs() {
         }
     }
 
-    // Renderowanie zakładki "Budynki"
     const kontener = document.getElementById("kontener-budynkow");
+    if (!kontener) return;
     kontener.innerHTML = "";
     const poziomRatusza = stanGracza.budynki.town_hall || 1;
 
@@ -389,24 +376,33 @@ function pokazSzczegolyPola(x, y, wioska) {
 
 // --- SILNIK CZASU GRY ---
 function odpalZegarProdukcji() {
+    if (interwalProdukcji) clearInterval(interwalProdukcji);
+
     interwalProdukcji = setInterval(async () => {
         if (!stanGracza.surowce || !stanGracza.budynki) return;
 
+        // Naliczanie surowców w locie
         for (const [kodBudynku, config] of Object.entries(BALANS_BUDYNKOW)) {
             if (config.resProd) {
                 const lvl = stanGracza.budynki[kodBudynku] || 0;
-                stanGracza.surowce[config.resProd] += lvl * config.prodBaza;
+                stanGracza.surowce[config.resProd] += (lvl * config.prodBaza);
             }
         }
 
-        document.getElementById("res-wood").innerText = Math.floor(stanGracza.surowce.wood);
-        document.getElementById("res-stone").innerText = Math.floor(stanGracza.surowce.stone);
-        document.getElementById("res-coal").innerText = Math.floor(stanGracza.surowce.coal);
-        document.getElementById("res-food").innerText = Math.floor(stanGracza.surowce.food);
+        // Aktualizacja UI surowców
+        const domWood = document.getElementById("res-wood");
+        if (domWood) domWood.innerText = Math.floor(stanGracza.surowce.wood);
+        const domStone = document.getElementById("res-stone");
+        if (domStone) domStone.innerText = Math.floor(stanGracza.surowce.stone);
+        const domCoal = document.getElementById("res-coal");
+        if (domCoal) domCoal.innerText = Math.floor(stanGracza.surowce.coal);
+        const domFood = document.getElementById("res-food");
+        if (domFood) domFood.innerText = Math.floor(stanGracza.surowce.food);
 
         let aktualnaData = new Date();
         let wymaganeOdswiezenieBazy = false;
 
+        // Obsługa timerów budowy
         for (const zadanie of stanGracza.kolejkaBudowy) {
             const elementTimer = document.getElementById(`timer-${zadanie.building_type}`);
             const czasKoncowy = new Date(zadanie.finish_time);
@@ -436,7 +432,6 @@ function odpalZegarProdukcji() {
             }
             await odswiezDaneZ_Bazy();
         }
-
     }, 1000);
 }
 
@@ -453,7 +448,7 @@ async function rozbudujBudynek(typ) {
 
     const maxKolejka = stanGracza.wioska.is_premium ? 5 : 2;
     if (stanGracza.kolejkaBudowy.length >= maxKolejka) {
-        return alert(`Kolejka budowy jest pełna! Maksymalna liczba budów: ${maxKolejka}. Rozszerz osadę do Konta Premium, aby zwiększyć limit do 5.`);
+        return alert(`Kolejka budowy jest pełna! Maksymalna liczba budów: ${maxKolejka}.`);
     }
 
     if (stanGracza.kolejkaBudowy.some(q => q.building_type === typ)) {
@@ -461,9 +456,8 @@ async function rozbudujBudynek(typ) {
     }
 
     const koszt = obliczKoszt(typ, obecnyLvl);
-
     if (stanGracza.surowce.wood < koszt.wood || stanGracza.surowce.stone < koszt.stone) {
-        return alert(`Za mało zasobów na rozbudowę ${config.name}! Wymagane: 🪵 ${koszt.wood}, 🪨 ${koszt.stone}.`);
+        return alert(`Za mało zasobów! Wymagane: 🪵 ${koszt.wood}, 🪨 ${koszt.stone}.`);
     }
 
     clearInterval(interwalProdukcji);
@@ -472,13 +466,10 @@ async function rozbudujBudynek(typ) {
     const poziomRatusza = stanGracza.budynki.town_hall || 1;
     const czasTrwaniaSekundy = obliczCzasBudowy(typ, obecnyLvl, poziomRatusza);
 
-    const noweDrewno = Math.floor(stanGracza.surowce.wood - koszt.wood);
-    const nowyKamien = Math.floor(stanGracza.surowce.stone - koszt.stone);
-
-    const dataZakonczenia = new Date();
-    dataZakonczenia.setSeconds(dataZakonczenia.getSeconds() + czasTrwaniaSekundy);
-
-    const { error: errRes } = await spClient.from('village_resources').update({ wood: noweDrewno, stone: nowyKamien }).eq('village_id', stanGracza.id);
+    const { error: errRes } = await spClient.from('village_resources').update({
+        wood: Math.floor(stanGracza.surowce.wood - koszt.wood),
+        stone: Math.floor(stanGracza.surowce.stone - koszt.stone)
+    }).eq('village_id', stanGracza.id);
 
     if (errRes) {
         alert("Błąd potrącania kosztów: " + errRes.message);
@@ -486,7 +477,10 @@ async function rozbudujBudynek(typ) {
         return;
     }
 
-    const { error: errQueue } = await spClient.from('construction_queue').insert({
+    const dataZakonczenia = new Date();
+    dataZakonczenia.setSeconds(dataZakonczenia.getSeconds() + czasTrwaniaSekundy);
+
+    await spClient.from('construction_queue').insert({
         village_id: stanGracza.id,
         building_type: typ,
         target_level: obecnyLvl + 1,
@@ -494,13 +488,6 @@ async function rozbudujBudynek(typ) {
     });
 
     await spClient.from('villages').update({ last_update: new Date().toISOString() }).eq('id', stanGracza.id);
-
-    if (errQueue) {
-        alert("Błąd dodawania do kolejki budowy: " + errQueue.message);
-    } else {
-        console.log(`Pomyślnie dodano do kolejki: ${config.name}. Czas budowy: ${czasTrwaniaSekundy}s.`);
-    }
-
     await odswiezDaneZ_Bazy();
 }
 
@@ -510,17 +497,12 @@ btnWyloguj.addEventListener("click", async () => {
     interwalProdukcji = null;
 
     if (stanGracza.id && stanGracza.surowce) {
-        // Tworzymy kopię surowców do zapisu
         let doZapisu = { ...stanGracza.surowce };
-        // Usuwamy z kopii dane których nie chcemy nadpisywać
         delete doZapisu.id;
         delete doZapisu.village_id;
 
-        // Zaokrąglamy wszystkie wyprodukowane w tle surowce przed wysłaniem do bazy
         for (let klucz in doZapisu) {
-            if (typeof doZapisu[klucz] === 'number') {
-                doZapisu[klucz] = Math.floor(doZapisu[klucz]);
-            }
+            if (typeof doZapisu[klucz] === 'number') doZapisu[klucz] = Math.floor(doZapisu[klucz]);
         }
 
         await spClient.from('village_resources').update(doZapisu).eq('village_id', stanGracza.id);
