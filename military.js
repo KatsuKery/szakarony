@@ -40,7 +40,6 @@ export async function przygotujIWyslijAtak(stanGracza, targetVillageId, wybraneJ
         }
 
         if (updates.length > 0) {
-            // POPRAWKA: Usunięto spację po przecinku w onConflict
             const { error: upsertError } = await spClient.from('village_units').upsert(updates, { onConflict: 'village_id,unit_type' });
             if (upsertError) throw upsertError;
         }
@@ -137,9 +136,6 @@ async function rozstrzygnijBitwe(ruch, villageId) {
         const lup = { wood, stone, gold };
         console.log(`Złupiono: 🪵${wood}, 🪨${stone}, 💰${gold}`);
 
-        // WYRAŹNA INFORMACJA O CZASIE POWROTU
-        console.log(`⏳ Twoja armia obraca się na pięcie i zaczyna marsz do domu. Powrót zajmie 30 sekund!`);
-
         if (cel.is_npc) {
             try {
                 await spClient.from('villages').delete().eq('id', cel.id);
@@ -151,11 +147,20 @@ async function rozstrzygnijBitwe(ruch, villageId) {
         noweWojsko._lup = lup;
         const czasPowrotu = new Date(Date.now() + 30 * 1000).toISOString();
 
-        await spClient.from('troop_movements').update({
+        // TEST WERYFIKACJI UPDATE'U BAZY:
+        const { data: updateData, error: updateErr } = await spClient.from('troop_movements').update({
             mission_type: 'return',
             finish_time: czasPowrotu,
             units: noweWojsko
-        }).eq('id', ruch.id);
+        }).eq('id', ruch.id).select(); // <--- SELECT WYMUSZA POTWIERDZENIE
+
+        if (updateErr) {
+            console.error("❌ BŁĄD BAZY: Supabase odrzuciło powrót wojska!", updateErr);
+        } else if (!updateData || updateData.length === 0) {
+            console.error("❌ BŁĄD BAZY: Komenda poszła, ale żaden wiersz się nie zaktualizował!");
+        } else {
+            console.log(`⏳ Armia w drodze powrotnej. Spodziewany powrót dokładnie o: ${new Date(czasPowrotu).toLocaleTimeString()}`);
+        }
 
     } else {
         console.log(`Wynik: PRZEGRANA! 💀`);
@@ -209,14 +214,11 @@ export async function sprawdzMaszerujaceWojska(villageId) {
                 }
 
                 if (updates.length > 0) {
-                    console.log(`Aktualizuję armię w koszarach...`);
-                    // POPRAWKA: Usunięto spację po przecinku w onConflict
                     const { error: upsertErr } = await spClient.from('village_units').upsert(updates, { onConflict: 'village_id,unit_type' });
                     if (upsertErr) throw upsertErr;
                 }
 
                 if (Object.keys(lup).length > 0) {
-                    console.log(`Dodaję zdobyte surowce do magazynu...`);
                     const { data: currRes } = await spClient.from('village_resources')
                         .select('*')
                         .eq('village_id', villageId)
