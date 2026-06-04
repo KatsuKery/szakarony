@@ -32,6 +32,26 @@ export function aktualizujInterfejs(stan) {
     }
 
     const frakcja = stan.wioska.faction;
+
+    // --- DYNAMICZNE TŁO FRAKCJI ---
+    const tlaFrakcji = {
+        ludzie: "url('https://images.unsplash.com/photo-1599839619722-39751411ea63?q=80&w=1920&auto=format&fit=crop')",
+        orkowie: "url('https://images.unsplash.com/photo-1536465492212-0761e389b25f?q=80&w=1920&auto=format&fit=crop')",
+        nieumarli: "url('https://images.unsplash.com/photo-1509248961158-e54f6934749c?q=80&w=1920&auto=format&fit=crop')",
+        elfy: "url('https://images.unsplash.com/photo-1542273917363-3b1817f69a5d?q=80&w=1920&auto=format&fit=crop')",
+        krasnoludy: "url('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=1920&auto=format&fit=crop')",
+        demony: "url('https://images.unsplash.com/photo-1611082697864-d62f8a846fdb?q=80&w=1920&auto=format&fit=crop')"
+    };
+
+    if (tlaFrakcji[frakcja]) {
+        // Dodajemy ciemny gradient, aby białe panele w grze były czytelne
+        document.body.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), ${tlaFrakcji[frakcja]}`;
+        document.body.style.backgroundSize = "cover";
+        document.body.style.backgroundPosition = "center";
+        document.body.style.backgroundAttachment = "fixed";
+        document.body.style.transition = "background-image 1s ease-in-out";
+    }
+
     const wszystkieFrakcje = ['ludzie', 'krasnoludy', 'nieumarli', 'elfy', 'orkowie', 'demony'];
     wszystkieFrakcje.forEach(f => {
         const blok = document.getElementById(`frakcja-${f}`);
@@ -78,7 +98,7 @@ export function aktualizujInterfejs(stan) {
 
         for (const [nazwaKat, budynki] of Object.entries(grupy)) {
             if (budynki.length === 0) continue;
-            kontenerBudynkow.innerHTML += `<h3 style="margin: 20px 0 10px 0; border-bottom: 2px solid #ccc; padding-bottom: 5px; color: #2c3e50;">${nazwaKat}</h3>`;
+            kontenerBudynkow.innerHTML += `<h3 style="margin: 20px 0 10px 0; border-bottom: 2px solid #ccc; padding-bottom: 5px; color: #ecf0f1; text-shadow: 1px 1px 2px black;">${nazwaKat}</h3>`;
 
             for (const { kod, config } of budynki) {
                 const lvl = stan.budynki[kod] || 0;
@@ -110,7 +130,7 @@ export function aktualizujInterfejs(stan) {
                        </button>`;
 
                 kontenerBudynkow.innerHTML += `
-                    <div class="budynek-wiersz" style="padding: 15px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 5px; background: #fff; display: flex; justify-content: space-between; align-items: center;">
+                    <div class="budynek-wiersz" style="padding: 15px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.95); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                         <div style="flex: 1;">
                             <strong style="font-size: 1.1em; color: #2c3e50;">${config.name}</strong> <span style="color:#2980b9; font-weight:bold;">(Poziom: ${lvl})</span>
                             ${efektTekst}
@@ -135,7 +155,7 @@ export function aktualizujInterfejs(stan) {
 
         let aktualneTaski = stan.kolejkaWojsko ? stan.kolejkaWojsko.length : 0;
         kontenerWojska.innerHTML += `
-            <div style="background: #f1f2f6; padding: 10px; border-radius: 5px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid ${isPremium ? '#f1c40f' : '#7f8c8d'};">
+            <div style="background: rgba(241, 242, 246, 0.95); padding: 10px; border-radius: 5px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid ${isPremium ? '#f1c40f' : '#7f8c8d'}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <div>
                     Status konta: <strong style="color: ${isPremium ? '#f39c12' : '#2c3e50'};">${isPremium ? '👑 PREMIUM' : '👤 ZWYKŁE'}</strong>
                     <br><small style="color: #7f8c8d;">Kolejka rekrutacji: <strong>${aktualneTaski} / ${maxSlots}</strong> slotów</small>
@@ -182,7 +202,7 @@ export function aktualizujInterfejs(stan) {
                 .join(' ');
 
             kontenerWojska.innerHTML += `
-                <div class="budynek-wiersz" style="padding: 15px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 5px; background: #fff; display: flex; justify-content: space-between; align-items: center;">
+                <div class="budynek-wiersz" style="padding: 15px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.95); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                     <div style="flex: 1;">
                         <strong style="font-size: 1.1em; color: #2c3e50;">${config.name}</strong> <span style="color:#27ae60; font-weight:bold;">(Masz: ${posiadane})</span>
                         ${tekstKolejki}
