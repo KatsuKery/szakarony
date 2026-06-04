@@ -1,4 +1,4 @@
-﻿import { spClient } from './config.js';
+import { spClient } from './config.js';
 import * as api from './api.js';
 import * as ui from './ui.js';
 import * as engine from './engine.js';
@@ -31,9 +31,16 @@ document.getElementById("btn-potwierdz-frakcje").addEventListener("click", async
         last_update: new Date().toISOString()
     });
 
+    // ZMIANA: Każdy surowiec (podstawowy i unikalny) ustawiony na 1000 na start!
     await api.insert('village_resources', {
-        village_id: auth.user.id, wood: 150, stone: 120, coal: 50, food: 100,
-        gold: 50, population: 10, knowledge: 0, essence: 0
+        village_id: auth.user.id,
+        wood: 1000, stone: 1000, coal: 1000, food: 1000, gold: 1000, population: 1000, knowledge: 1000, essence: 1000,
+        iron: 1000, silver: 1000, relics: 1000,
+        mithril: 1000, runestones: 1000, ale: 1000,
+        corpses: 1000, blood: 1000, black_frost: 1000,
+        elderwood: 1000, crystals: 1000, stardust: 1000,
+        bones: 1000, hides: 1000, tusks: 1000,
+        sulfur: 1000, obsidian: 1000, chaos_flame: 1000
     });
 
     await api.insert('village_buildings', {
@@ -108,7 +115,6 @@ function odpalZegarProdukcji() {
         if (doUkonczeniaWojsko.length > 0) {
             for (const q of doUkonczeniaWojsko) {
                 const obecnaIlosc = stanGracza.jednostki[q.unit_type] || 0;
-                // Kiedy czas minie, wpisujemy do village_units i usuwamy z kolejki
                 await spClient.from('village_units').upsert({
                     village_id: stanGracza.id,
                     unit_type: q.unit_type,
@@ -131,14 +137,22 @@ window.rozbudujBudynek = async (typ) => {
     const lvl = stanGracza.budynki[typ] || 0;
     const koszt = engine.obliczKoszt(typ, lvl);
 
-    if (stanGracza.surowce.wood < koszt.wood || stanGracza.surowce.stone < koszt.stone) {
-        return alert("Za mało surowców!");
+    // Dynamiczna walidacja wszystkich surowców
+    for (const [surowiec, wymaganaIlosc] of Object.entries(koszt)) {
+        const posiadane = stanGracza.surowce[surowiec] || 0;
+        if (posiadane < wymaganaIlosc) {
+            return alert(`Za mało surowców! Brakuje Ci: ${surowiec}`);
+        }
     }
 
-    await api.aktualizuj('village_resources', {
-        wood: stanGracza.surowce.wood - koszt.wood,
-        stone: stanGracza.surowce.stone - koszt.stone
-    }, 'village_id', stanGracza.id);
+    // Dynamiczne odejmowanie surowców wymaganych przez budynek
+    const surowceDoAktualizacji = {};
+    for (const [surowiec, wymaganaIlosc] of Object.entries(koszt)) {
+        stanGracza.surowce[surowiec] -= wymaganaIlosc;
+        surowceDoAktualizacji[surowiec] = stanGracza.surowce[surowiec];
+    }
+
+    await api.aktualizuj('village_resources', surowceDoAktualizacji, 'village_id', stanGracza.id);
 
     const czasBudowy = engine.obliczCzasBudowy(typ, lvl, stanGracza.budynki.town_hall);
     await api.insert('construction_queue', {
@@ -189,7 +203,6 @@ window.rekrutujJednostke = async function (kod, ilosc) {
     try {
         await spClient.from('village_resources').update(surowceDoAktualizacji).eq('village_id', stanGracza.id);
 
-        // 3. Dodanie do kolejki (ZAMIAST natychmiastowego tworzenia)
         const czasSzkolenia = configJednostki.time * ilosc;
 
         await api.insert('unit_queue', {
@@ -199,7 +212,6 @@ window.rekrutujJednostke = async function (kod, ilosc) {
             finish_time: new Date(Date.now() + czasSzkolenia * 1000).toISOString()
         });
 
-        // 4. Odświeżenie interfejsu
         await odswiezDaneZ_Bazy();
 
     } catch (error) {
