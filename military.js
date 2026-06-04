@@ -1,9 +1,8 @@
-﻿import { spClient } from './config.js';
+import { spClient } from './config.js';
 import { BALANS_JEDNOSTEK } from './units.js';
 
 // 1. FUNKCJA WYSYŁAJĄCA ATAK
 export async function przygotujIWyslijAtak(stanGracza, targetVillageId, wybraneJednostki) {
-    // KLUCZOWA ZMIANA: Używamy ID wioski, a nie ID użytkownika
     const villageId = stanGracza.wioska.id;
 
     const wojskoDoWyslania = {};
@@ -34,34 +33,29 @@ export async function przygotujIWyslijAtak(stanGracza, targetVillageId, wybraneJ
         for (const [kod, ilosc] of Object.entries(wojskoDoWyslania)) {
             noweJednostki[kod] -= ilosc;
             updates.push({
-                village_id: villageId, // Używamy Village ID
+                village_id: villageId,
                 unit_type: kod,
                 quantity: noweJednostki[kod]
             });
         }
 
-        // Wykonanie Upsert
-        const { error: upsertError } = await spClient.from('village_units').upsert(updates);
-        if (upsertError) {
-            console.error("Błąd podczas aktualizacji jednostek (upsert):", upsertError);
-            throw upsertError;
+        if (updates.length > 0) {
+            const { error: upsertError } = await spClient.from('village_units').upsert(updates);
+            if (upsertError) throw upsertError;
         }
 
         const czasMarszuSekundy = 30;
         const czasDotarcia = new Date(Date.now() + czasMarszuSekundy * 1000).toISOString();
 
         const { error: moveError } = await spClient.from('troop_movements').insert([{
-            village_from_id: villageId, // Używamy Village ID
+            village_from_id: villageId,
             village_to_id: targetVillageId,
             units: wojskoDoWyslania,
             mission_type: 'attack',
             finish_time: czasDotarcia
         }]);
 
-        if (moveError) {
-            console.error("Błąd podczas tworzenia ruchu wojsk:", moveError);
-            throw moveError;
-        }
+        if (moveError) throw moveError;
 
         alert(`Wojsko wyruszyło na wyprawę! Dotrą na miejsce za ${czasMarszuSekundy} sekund.`);
         return true;
@@ -73,14 +67,8 @@ export async function przygotujIWyslijAtak(stanGracza, targetVillageId, wybraneJ
 }
 
 // 2. FUNKCJA OBLICZAJĄCA WALKĘ (Silnik Bitewny)
-// Tu stanGraczaId to poprawny Village ID przekazywany z pętli
 async function rozstrzygnijBitwe(ruch, villageId) {
     const { data: cel } = await spClient.from('villages').select('*').eq('id', ruch.village_to_id).single();
-
-    let silaAtaku = 0;
-    for (const [kod, ilosc] of Object.entries(ruch.units)) {
-        silaAtaku += (BALANS_JEDNOSTEK[kod]?.att || 10) * ilosc;
-    }
 
     if (!cel) {
         console.log("Cel zniknął. Armia wraca pusta.");
@@ -91,19 +79,37 @@ async function rozstrzygnijBitwe(ruch, villageId) {
         return;
     }
 
+    // --- KALKULACJA SIŁY ---
+    let silaAtaku = 0;
+    for (const [kod, ilosc] of Object.entries(ruch.units)) {
+        silaAtaku += (BALANS_JEDNOSTEK[kod]?.att || 10) * ilosc;
+    }
+
     let silaObrony = 0;
     let mnoznikLupu = 1;
+    let opisObroncy = "Nieznany";
 
     if (cel.is_npc) {
-        if (cel.npc_tier === 1) { silaObrony = 50; mnoznikLupu = 1; }
-        else if (cel.npc_tier === 2) { silaObrony = 250; mnoznikLupu = 4; }
-        else { silaObrony = 1000; mnoznikLupu = 10; }
+        // TIER NPC DECYDUJE O SILE (Możesz to w przyszłości zamienić na konkretne jednostki)
+        if (cel.npc_tier === 1) { silaObrony = 50; mnoznikLupu = 1; opisObroncy = "Słaba straż (S.O: 50)"; }
+        else if (cel.npc_tier === 2) { silaObrony = 250; mnoznikLupu = 4; opisObroncy = "Horda potworów (S.O: 250)"; }
+        else { silaObrony = 1000; mnoznikLupu = 10; opisObroncy = "Legion Ciemności (S.O: 1000)"; }
     } else {
-        silaObrony = 100;
+        silaObrony = 100; // Obrona gracza (tymczasowa)
+        opisObroncy = "Mury osady (S.O: 100)";
     }
+
+    // --- RAPORT BITEWNY (Wyświetlany w konsoli) ---
+    console.log(`\n⚔️ --- RAPORT Z BITWY --- ⚔️`);
+    console.log(`Cel ataku: ${cel.name}`);
+    console.log(`Przeciwnik: ${opisObroncy}`);
+    console.log(`Twoja siła ataku: ${silaAtaku}`);
 
     if (silaAtaku > silaObrony) {
         const procentStrat = Math.min(0.9, silaObrony / silaAtaku);
+        console.log(`Wynik: ZWYCIĘSTWO! 🎉`);
+        console.log(`Straty w Twojej armii: ${Math.round(procentStrat * 100)}%`);
+
         const noweWojsko = {};
         let calkowityUdzwig = 0;
 
@@ -130,6 +136,7 @@ async function rozstrzygnijBitwe(ruch, villageId) {
         }
 
         const lup = { wood, stone, gold };
+        console.log(`Złupiono: 🪵${wood}, 🪨${stone}, 💰${gold}`);
 
         if (cel.is_npc) {
             try {
@@ -148,12 +155,12 @@ async function rozstrzygnijBitwe(ruch, villageId) {
             units: noweWojsko
         }).eq('id', ruch.id);
 
-        console.log(`[WALKA] Wygrana z: ${cel.name}! Wojsko wraca.`);
-
     } else {
+        console.log(`Wynik: PRZEGRANA! 💀`);
+        console.log(`Cała Twoja armia została zniszczona.`);
         await spClient.from('troop_movements').delete().eq('id', ruch.id);
-        console.log(`[WALKA] Przegrana z: ${cel.name}. Cała armia poległa.`);
     }
+    console.log(`---------------------------\n`);
 }
 
 // 3. GŁÓWNA FUNKCJA SILNIKA
@@ -176,42 +183,55 @@ export async function sprawdzMaszerujaceWojska(villageId) {
             zaktualizowanoCos = true;
         }
         else if (ruch.mission_type === 'return') {
-            const powracajaceWojsko = { ...ruch.units };
-            const lup = powracajaceWojsko._lup || {};
-            delete powracajaceWojsko._lup;
+            try {
+                const powracajaceWojsko = { ...ruch.units };
+                const lup = powracajaceWojsko._lup || {};
+                delete powracajaceWojsko._lup;
 
-            const { data: jednostkiBazy } = await spClient.from('village_units')
-                .select('unit_type, quantity')
-                .eq('village_id', villageId);
+                const { data: jednostkiBazy } = await spClient.from('village_units')
+                    .select('unit_type, quantity')
+                    .eq('village_id', villageId);
 
-            const mapaJednostek = {};
-            if (jednostkiBazy) jednostkiBazy.forEach(j => mapaJednostek[j.unit_type] = j.quantity);
+                const mapaJednostek = {};
+                if (jednostkiBazy) jednostkiBazy.forEach(j => mapaJednostek[j.unit_type] = j.quantity);
 
-            const updates = [];
-            for (const [kod, ilosc] of Object.entries(powracajaceWojsko)) {
-                const nowaIlosc = (mapaJednostek[kod] || 0) + ilosc;
-                updates.push({ village_id: villageId, unit_type: kod, quantity: nowaIlosc });
-            }
-
-            await spClient.from('village_units').upsert(updates);
-
-            if (Object.keys(lup).length > 0) {
-                const { data: currRes } = await spClient.from('village_resources')
-                    .select('*')
-                    .eq('village_id', villageId)
-                    .single();
-
-                if (currRes) {
-                    for (const res in lup) {
-                        currRes[res] = (currRes[res] || 0) + lup[res];
+                const updates = [];
+                for (const [kod, ilosc] of Object.entries(powracajaceWojsko)) {
+                    if (ilosc > 0) { // Zabezpieczenie przed błędem
+                        const nowaIlosc = (mapaJednostek[kod] || 0) + ilosc;
+                        updates.push({ village_id: villageId, unit_type: kod, quantity: nowaIlosc });
                     }
-                    await spClient.from('village_resources').update(currRes).eq('village_id', villageId);
                 }
-            }
 
-            await spClient.from('troop_movements').delete().eq('id', ruch.id);
-            alert(`Wojska wróciły! Zrabowano: Drewno:${lup.wood || 0}, Kamień:${lup.stone || 0}, Złoto:${lup.gold || 0}`);
-            zaktualizowanoCos = true;
+                // Zabezpieczenie: Wysyłamy upsert tylko jeśli wojsko faktycznie przeżyło
+                if (updates.length > 0) {
+                    const { error: upsertErr } = await spClient.from('village_units').upsert(updates);
+                    if (upsertErr) console.error("Błąd przywracania wojsk:", upsertErr);
+                }
+
+                // Dodawanie łupów
+                if (Object.keys(lup).length > 0) {
+                    const { data: currRes } = await spClient.from('village_resources')
+                        .select('*')
+                        .eq('village_id', villageId)
+                        .single();
+
+                    if (currRes) {
+                        for (const res in lup) {
+                            currRes[res] = (currRes[res] || 0) + lup[res];
+                        }
+                        await spClient.from('village_resources').update(currRes).eq('village_id', villageId);
+                    }
+                }
+
+                // Usunięcie ruchu po udanym powrocie
+                await spClient.from('troop_movements').delete().eq('id', ruch.id);
+                console.log(`[POWRÓT] Wojska wróciły! Zrabowano: Drewno:${lup.wood || 0}, Kamień:${lup.stone || 0}, Złoto:${lup.gold || 0}`);
+                zaktualizowanoCos = true;
+
+            } catch (err) {
+                console.error("Krytyczny błąd podczas powrotu wojsk:", err);
+            }
         }
     }
     return zaktualizowanoCos;
