@@ -1,4 +1,4 @@
-// Połączenie z Twoim Supabase
+﻿// Połączenie z Twoim Supabase
 const SUPABASE_URL = "https://avofpueaxoxsfefsuskn.supabase.co";
 const SUPABASE_KEY = "sb_publishable_PMPJWyxglYFIHVkcRqBKYQ_s-k9CmVl";
 const spClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -8,6 +8,7 @@ console.log("Supabase zainicjalizowany pomyślnie!");
 // Pobranie elementów HTML
 const emailInput = document.getElementById("email");
 const hasloInput = document.getElementById("haslo");
+const selektorFrakcji = document.getElementById("frakcja");
 const btnZaloguj = document.getElementById("btn-zaloguj");
 const btnZarejestruj = document.getElementById("btn-zarejestruj");
 const btnWyloguj = document.getElementById("btn-wyloguj");
@@ -23,13 +24,13 @@ let stanGracza = {
     kolejkaBudowy: []
 };
 
-// Zmienna przechowująca identyfikator pętli czasu
 let interwalProdukcji = null;
 
 // --- REJESTRACJA NOWEGO GRACZA + TWORZENIE WIOSKI ---
 btnZarejestruj.addEventListener("click", async () => {
     const email = emailInput.value;
     const password = hasloInput.value;
+    const wybranaFrakcja = selektorFrakcji.value;
 
     if (!email || !password) return alert("Wpisz email i hasło!");
 
@@ -42,7 +43,6 @@ btnZarejestruj.addEventListener("click", async () => {
     if (!authData.user) return alert("Błąd krytyczny: Nie utworzono użytkownika.");
 
     const userId = authData.user.id;
-
     const losoweX = Math.floor(Math.random() * 80) + 10;
     const losoweY = Math.floor(Math.random() * 80) + 10;
 
@@ -52,33 +52,30 @@ btnZarejestruj.addEventListener("click", async () => {
         pos_x: losoweX,
         pos_y: losoweY,
         is_premium: false,
+        faction: wybranaFrakcja,
         last_update: new Date().toISOString()
     });
 
     if (villageError) return alert("Błąd tworzenia wioski: " + villageError.message);
 
+    // Inicjalizacja wszystkich zasobów z nowej tabeli
     const { error: resError } = await spClient.from('village_resources').insert({
         village_id: userId,
-        wood: 150,
-        stone: 120,
-        bread: 20,
-        gold_coins: 50
+        wood: 150, stone: 120, coal: 50, food: 100,
+        gold: 50, population: 10, knowledge: 0, essence: 0,
+        iron: 0, mithril: 0, crystals: 0, bones: 0, sulfur: 0, souls: 0
     });
 
     if (resError) return alert("Błąd generowania zasobów: " + resError.message);
 
     const { error: buildError } = await spClient.from('village_buildings').insert({
         village_id: userId,
-        town_hall: 1,
-        lumberjack: 1,
-        quarry: 1,
-        farm: 1,
-        well: 1
+        town_hall: 1, lumberjack: 1, quarry: 1, coal_mine: 1, farm: 1
     });
 
     if (buildError) return alert("Błąd wznoszenia budynków startowych: " + buildError.message);
 
-    alert("Wioska i gospodarka zostały pomyślnie zainicjalizowane! Możesz się zalogować.");
+    alert("Wioska " + wybranaFrakcja + " została pomyślnie zainicjalizowana! Możesz się zalogować.");
 });
 
 // --- LOGOWANIE + POBRANIE DANYCH Z 3 TABEL ---
@@ -132,14 +129,13 @@ async function obliczCzasOffline() {
 
     const dataOstatnia = new Date(stanGracza.wioska.last_update);
     const dataAktualna = new Date();
-
     const roznicaSekund = Math.floor((dataAktualna - dataOstatnia) / 1000);
 
     if (roznicaSekund < 2) return;
 
-    console.log(`Gracza nie było przez: ${roznicaSekund} sekund. Naliczam produkcję offline...`);
+    console.log(`Naliczam produkcję offline za ${roznicaSekund} sekund.`);
 
-    let wyprodukowano = { wood: 0, stone: 0, wheat: 0, water: 0, iron_ore: 0, coal: 0 };
+    let wyprodukowano = { wood: 0, stone: 0, coal: 0, food: 0 };
 
     for (const [kodBudynku, config] of Object.entries(BALANS_BUDYNKOW)) {
         if (config.resProd) {
@@ -152,36 +148,22 @@ async function obliczCzasOffline() {
     const zaktualizowaneSurowce = {
         wood: Math.floor(stanGracza.surowce.wood + wyprodukowano.wood),
         stone: Math.floor(stanGracza.surowce.stone + wyprodukowano.stone),
-        wheat: Math.floor(stanGracza.surowce.wheat + wyprodukowano.wheat),
-        water: Math.floor(stanGracza.surowce.water + wyprodukowano.water),
-        iron_ore: Math.floor(stanGracza.surowce.iron_ore + wyprodukowano.iron_ore),
-        coal: Math.floor(stanGracza.surowce.coal + wyprodukowano.coal)
+        coal: Math.floor(stanGracza.surowce.coal + wyprodukowano.coal),
+        food: Math.floor(stanGracza.surowce.food + wyprodukowano.food)
     };
 
     const nowyCzasISO = dataAktualna.toISOString();
 
-    const { error: errRes } = await spClient
-        .from('village_resources')
-        .update(zaktualizowaneSurowce)
-        .eq('village_id', stanGracza.id);
+    await spClient.from('village_resources').update(zaktualizowaneSurowce).eq('village_id', stanGracza.id);
+    await spClient.from('villages').update({ last_update: nowyCzasISO }).eq('id', stanGracza.id);
 
-    const { error: errTime } = await spClient
-        .from('villages')
-        .update({ last_update: nowyCzasISO })
-        .eq('id', stanGracza.id);
+    stanGracza.surowce.wood = zaktualizowaneSurowce.wood;
+    stanGracza.surowce.stone = zaktualizowaneSurowce.stone;
+    stanGracza.surowce.coal = zaktualizowaneSurowce.coal;
+    stanGracza.surowce.food = zaktualizowaneSurowce.food;
+    stanGracza.wioska.last_update = nowyCzasISO;
 
-    if (!errRes && !errTime) {
-        console.log("Gospodarka offline zsynchronizowana z Supabase pomyślnie!");
-        stanGracza.surowce.wood = zaktualizowaneSurowce.wood;
-        stanGracza.surowce.stone = zaktualizowaneSurowce.stone;
-        stanGracza.surowce.wheat = zaktualizowaneSurowce.wheat;
-        stanGracza.surowce.water = zaktualizowaneSurowce.water;
-        stanGracza.surowce.iron_ore = zaktualizowaneSurowce.iron_ore;
-        stanGracza.surowce.coal = zaktualizowaneSurowce.coal;
-        stanGracza.wioska.last_update = nowyCzasISO;
-
-        aktualizujInterfejs();
-    }
+    aktualizujInterfejs();
 }
 
 // --- FUNKCJA ODŚWIEŻAJĄCA ELEMENTY INTERFEJSU ---
@@ -189,18 +171,36 @@ function aktualizujInterfejs() {
     document.getElementById("nazwa-wioski").innerText = stanGracza.wioska.name;
     document.getElementById("wioska-x").innerText = stanGracza.wioska.pos_x;
     document.getElementById("wioska-y").innerText = stanGracza.wioska.pos_y;
+    document.getElementById("wioska-frakcja").innerText = stanGracza.wioska.faction || "Nieznana";
 
+    // Uniwersalne i globalne surowce
     document.getElementById("res-wood").innerText = Math.floor(stanGracza.surowce.wood);
     document.getElementById("res-stone").innerText = Math.floor(stanGracza.surowce.stone);
-    document.getElementById("res-iron-ore").innerText = Math.floor(stanGracza.surowce.iron_ore || 0);
-    document.getElementById("res-coal").innerText = Math.floor(stanGracza.surowce.coal || 0);
-    document.getElementById("res-wheat").innerText = Math.floor(stanGracza.surowce.wheat || 0);
-    document.getElementById("res-water").innerText = Math.floor(stanGracza.surowce.water || 0);
-    document.getElementById("res-flour").innerText = Math.floor(stanGracza.surowce.flour || 0);
-    document.getElementById("res-iron-ingot").innerText = Math.floor(stanGracza.surowce.iron_ingot || 0);
-    document.getElementById("res-bread").innerText = Math.floor(stanGracza.surowce.bread || 0);
-    document.getElementById("res-gold-coins").innerText = Math.floor(stanGracza.surowce.gold_coins || 0);
+    document.getElementById("res-coal").innerText = Math.floor(stanGracza.surowce.coal);
+    document.getElementById("res-food").innerText = Math.floor(stanGracza.surowce.food);
 
+    document.getElementById("res-gold").innerText = Math.floor(stanGracza.surowce.gold);
+    document.getElementById("res-population").innerText = Math.floor(stanGracza.surowce.population);
+    document.getElementById("res-knowledge").innerText = Math.floor(stanGracza.surowce.knowledge);
+    document.getElementById("res-essence").innerText = Math.floor(stanGracza.surowce.essence);
+
+    // Unikalne surowce (wyświetlanie zależne od frakcji)
+    const frakcja = stanGracza.wioska.faction;
+    document.getElementById("kontener-iron").style.display = frakcja === "ludzie" ? "block" : "none";
+    document.getElementById("kontener-bones").style.display = frakcja === "orkowie" ? "block" : "none";
+    document.getElementById("kontener-souls").style.display = frakcja === "nieumarli" ? "block" : "none";
+    document.getElementById("kontener-crystals").style.display = frakcja === "elfy" ? "block" : "none";
+    document.getElementById("kontener-mithril").style.display = frakcja === "krasnoludy" ? "block" : "none";
+    document.getElementById("kontener-sulfur").style.display = frakcja === "demony" ? "block" : "none";
+
+    if (frakcja === "ludzie") document.getElementById("res-iron").innerText = Math.floor(stanGracza.surowce.iron || 0);
+    if (frakcja === "orkowie") document.getElementById("res-bones").innerText = Math.floor(stanGracza.surowce.bones || 0);
+    if (frakcja === "nieumarli") document.getElementById("res-souls").innerText = Math.floor(stanGracza.surowce.souls || 0);
+    if (frakcja === "elfy") document.getElementById("res-crystals").innerText = Math.floor(stanGracza.surowce.crystals || 0);
+    if (frakcja === "krasnoludy") document.getElementById("res-mithril").innerText = Math.floor(stanGracza.surowce.mithril || 0);
+    if (frakcja === "demony") document.getElementById("res-sulfur").innerText = Math.floor(stanGracza.surowce.sulfur || 0);
+
+    // Odświeżenie wskaźników produkcji
     for (const [kodBudynku, config] of Object.entries(BALANS_BUDYNKOW)) {
         if (config.resProd) {
             const lvl = stanGracza.budynki[kodBudynku] || 0;
@@ -276,7 +276,7 @@ async function fetchNearbyVillages() {
 
     const { data, error } = await spClient
         .from('villages')
-        .select('id, name, pos_x, pos_y')
+        .select('id, name, pos_x, pos_y, faction')
         .gte('pos_x', minX)
         .lte('pos_x', maxX)
         .gte('pos_y', minY)
@@ -338,6 +338,7 @@ function pokazSzczegolyPola(x, y, wioska) {
         detailInfo.innerHTML = `
             <strong>Typ:</strong> ${czyMoja ? "Twoja Wioska" : "Wioska Gracza"}<br>
             <strong>Nazwa:</strong> ${wioska.name}<br>
+            <strong>Frakcja:</strong> <span style="text-transform: capitalize;">${wioska.faction || 'Nieznana'}</span><br>
             <strong>Współrzędne:</strong> (${x}|${y})<br>
             ${czyMoja ? '' : '<button onclick="alert(\'Mechanika napadów wkrótce!\')">Wyślij atak</button>'}
         `;
@@ -364,10 +365,8 @@ function odpalZegarProdukcji() {
 
         document.getElementById("res-wood").innerText = Math.floor(stanGracza.surowce.wood);
         document.getElementById("res-stone").innerText = Math.floor(stanGracza.surowce.stone);
-        document.getElementById("res-iron-ore").innerText = Math.floor(stanGracza.surowce.iron_ore || 0);
-        document.getElementById("res-coal").innerText = Math.floor(stanGracza.surowce.coal || 0);
-        document.getElementById("res-wheat").innerText = Math.floor(stanGracza.surowce.wheat || 0);
-        document.getElementById("res-water").innerText = Math.floor(stanGracza.surowce.water || 0);
+        document.getElementById("res-coal").innerText = Math.floor(stanGracza.surowce.coal);
+        document.getElementById("res-food").innerText = Math.floor(stanGracza.surowce.food);
 
         let aktualnaData = new Date();
         let wymaganeOdswiezenieBazy = false;
@@ -475,13 +474,12 @@ btnWyloguj.addEventListener("click", async () => {
     interwalProdukcji = null;
 
     if (stanGracza.id && stanGracza.surowce) {
+        // Zapis wszystkich aktualnych surowców z tabeli
         await spClient.from('village_resources').update({
             wood: Math.floor(stanGracza.surowce.wood),
             stone: Math.floor(stanGracza.surowce.stone),
-            wheat: Math.floor(stanGracza.surowce.wheat),
-            water: Math.floor(stanGracza.surowce.water),
-            iron_ore: Math.floor(stanGracza.surowce.iron_ore),
-            coal: Math.floor(stanGracza.surowce.coal)
+            coal: Math.floor(stanGracza.surowce.coal),
+            food: Math.floor(stanGracza.surowce.food)
         }).eq('village_id', stanGracza.id);
 
         await spClient.from('villages').update({ last_update: new Date().toISOString() }).eq('id', stanGracza.id);
@@ -494,14 +492,9 @@ btnWyloguj.addEventListener("click", async () => {
 // --- OBSŁUGA PRZEŁĄCZANIA ZAKŁADEK NAWIGACJI ---
 document.querySelectorAll('.btn-zakladka').forEach(przycisk => {
     przycisk.addEventListener('click', (e) => {
-        // 1. Usunięcie klasy 'aktywna' ze wszystkich przycisków i dodanie do klikniętego
         document.querySelectorAll('.btn-zakladka').forEach(b => b.classList.remove('aktywna'));
         e.target.classList.add('aktywna');
-
-        // 2. Ukrycie wszystkich widoków zakładki
         document.querySelectorAll('.zakladka-tresc').forEach(tresc => tresc.classList.add('ukryty'));
-
-        // 3. Pokazanie wybranego widoku na podstawie atrybutu data-cel
         const celId = e.target.getAttribute('data-cel');
         document.getElementById(celId).classList.remove('ukryty');
     });
@@ -519,7 +512,6 @@ function pokazEkranLogowania() {
     emailInput.value = "";
     hasloInput.value = "";
 
-    // Reset zakładki na domyślną pierwszą przy wylogowaniu
     document.querySelectorAll('.btn-zakladka').forEach(b => b.classList.remove('aktywna'));
     document.querySelector('[data-cel="widok-ogolny"]').classList.add('aktywna');
     document.querySelectorAll('.zakladka-tresc').forEach(tresc => tresc.classList.add('ukryty'));

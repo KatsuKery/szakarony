@@ -3,14 +3,8 @@ const BALANS_BUDYNKOW = {
     town_hall: { name: "Ratusz", maxLvl: 20, wzrostKosztu: 1.26, woodBaza: 90, stoneBaza: 80, prodBaza: 0, resProd: null, timeBaza: 30 },
     lumberjack: { name: "Tartak", maxLvl: 30, wzrostKosztu: 1.25, woodBaza: 60, stoneBaza: 50, prodBaza: 0.5, resProd: "wood", timeBaza: 15 },
     quarry: { name: "Kamieniołom", maxLvl: 30, wzrostKosztu: 1.27, woodBaza: 75, stoneBaza: 40, prodBaza: 0.4, resProd: "stone", timeBaza: 20 },
-    iron_mine: { name: "Kopalnia Żelaza", maxLvl: 30, wzrostKosztu: 1.30, woodBaza: 100, stoneBaza: 80, prodBaza: 0.2, resProd: "iron_ore", timeBaza: 40 },
     coal_mine: { name: "Kopalnia Węgla", maxLvl: 30, wzrostKosztu: 1.28, woodBaza: 120, stoneBaza: 90, prodBaza: 0.3, resProd: "coal", timeBaza: 35 },
-    farm: { name: "Farma", maxLvl: 30, wzrostKosztu: 1.24, woodBaza: 50, stoneBaza: 30, prodBaza: 0.6, resProd: "wheat", timeBaza: 12 },
-    well: { name: "Studnia", maxLvl: 20, wzrostKosztu: 1.22, woodBaza: 40, stoneBaza: 20, prodBaza: 0.8, resProd: "water", timeBaza: 10 },
-    mill: { name: "Młyn", maxLvl: 15, wzrostKosztu: 1.35, woodBaza: 200, stoneBaza: 150, prodBaza: 0, resProd: null, timeBaza: 60 },
-    bakery: { name: "Piekarnia", maxLvl: 15, wzrostKosztu: 1.38, woodBaza: 250, stoneBaza: 180, prodBaza: 0, resProd: null, timeBaza: 90 },
-    smelter: { name: "Huta", maxLvl: 15, wzrostKosztu: 1.40, woodBaza: 300, stoneBaza: 250, prodBaza: 0, resProd: null, timeBaza: 120 },
-    forge: { name: "Kuźnia", maxLvl: 10, wzrostKosztu: 1.45, woodBaza: 400, stoneBaza: 350, prodBaza: 0, resProd: null, timeBaza: 180 }
+    farm: { name: "Farma", maxLvl: 30, wzrostKosztu: 1.24, woodBaza: 50, stoneBaza: 30, prodBaza: 0.6, resProd: "food", timeBaza: 12 }
 };
 
 // Funkcja obliczająca koszt dla dowolnego budynku i poziomu

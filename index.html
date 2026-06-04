@@ -16,6 +16,17 @@
         <h3>Zaloguj się lub zarejestruj</h3>
         <input type="email" id="email" placeholder="Twój E-mail"><br><br>
         <input type="password" id="haslo" placeholder="Twoje Hasło"><br><br>
+
+        <label for="frakcja">Wybierz rasę (tylko rejestracja):</label><br>
+        <select id="frakcja" style="margin-bottom: 15px; padding: 5px;">
+            <option value="ludzie">Ludzie (Żelazo)</option>
+            <option value="orkowie">Orkowie (Kości)</option>
+            <option value="nieumarli">Nieumarli (Dusze)</option>
+            <option value="elfy">Elfy (Kryształy)</option>
+            <option value="krasnoludy">Krasnoludy (Mithril)</option>
+            <option value="demony">Demony (Siarka)</option>
+        </select><br>
+
         <button id="btn-zaloguj">Zaloguj się</button>
         <button id="btn-zarejestruj">Zarejestruj nową wioskę</button>
     </div>
@@ -23,23 +34,32 @@
     <div id="sekcja-gra" style="display: none;">
 
         <h2 id="nazwa-wioski">Twoja Wioska</h2>
-        <p>Pozycja na mapie: <strong>X: <span id="wioska-x">0</span>, Y: <span id="wioska-y">0</span></strong></p>
+        <p>Pozycja na mapie: <strong>X: <span id="wioska-x">0</span>, Y: <span id="wioska-y">0</span></strong> | Frakcja: <strong id="wioska-frakcja" style="text-transform: capitalize;">Brak</strong></p>
 
         <div class="panel">
             <h3>Magazyn Surowców</h3>
-            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+
+            <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 10px;">
                 <p>🪵 Drewno: <strong id="res-wood">0</strong> <span style="color: green; font-size: 0.9em;">(<span id="prod-wood">0</span>/h)</span></p>
                 <p>🪨 Kamień: <strong id="res-stone">0</strong> <span style="color: green; font-size: 0.9em;">(<span id="prod-stone">0</span>/h)</span></p>
-                <p>⛏️ Ruda Żelaza: <strong id="res-iron-ore">0</strong> <span style="color: green; font-size: 0.9em;">(<span id="prod-iron_ore">0</span>/h)</span></p>
-                <p>🪨 Węgiel: <strong id="res-coal">0</strong> <span style="color: green; font-size: 0.9em;">(<span id="prod-coal">0</span>/h)</span></p>
-                <p>🌾 Zboże: <strong id="res-wheat">0</strong> <span style="color: green; font-size: 0.9em;">(<span id="prod-wheat">0</span>/h)</span></p>
-                <p>💧 Woda: <strong id="res-water">0</strong> <span style="color: green; font-size: 0.9em;">(<span id="prod-water">0</span>/h)</span></p>
+                <p>🔥 Węgiel: <strong id="res-coal">0</strong> <span style="color: green; font-size: 0.9em;">(<span id="prod-coal">0</span>/h)</span></p>
+                <p>🍞 Żywność: <strong id="res-food">0</strong> <span style="color: green; font-size: 0.9em;">(<span id="prod-food">0</span>/h)</span></p>
             </div>
-            <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 10px; border-top: 1px solid #ddd; padding-top: 10px;">
-                <p>⏳ Mąka: <strong id="res-flour">0</strong></p>
-                <p>🪙 Sztaby Żelaza: <strong id="res-iron-ingot">0</strong></p>
-                <p>🍞 Chleb: <strong id="res-bread">0</strong></p>
-                <p>💰 Złote Monety: <strong id="res-gold-coins">0</strong></p>
+
+            <div style="display: flex; gap: 20px; flex-wrap: wrap; border-top: 1px solid #ddd; padding-top: 10px; margin-bottom: 10px;">
+                <p>💰 Złoto: <strong id="res-gold">0</strong></p>
+                <p>👥 Populacja: <strong id="res-population">0</strong></p>
+                <p>📜 Wiedza: <strong id="res-knowledge">0</strong></p>
+                <p>✨ Esencja: <strong id="res-essence">0</strong></p>
+            </div>
+
+            <div style="display: flex; gap: 20px; flex-wrap: wrap; border-top: 1px solid #ddd; padding-top: 10px; background-color: #f9f9f9;">
+                <p id="kontener-iron" style="display: none;">⛏️ Żelazo: <strong id="res-iron">0</strong></p>
+                <p id="kontener-bones" style="display: none;">🦴 Kości: <strong id="res-bones">0</strong></p>
+                <p id="kontener-souls" style="display: none;">👻 Dusze: <strong id="res-souls">0</strong></p>
+                <p id="kontener-crystals" style="display: none;">💎 Kryształy: <strong id="res-crystals">0</strong></p>
+                <p id="kontener-mithril" style="display: none;">🛡️ Mithril: <strong id="res-mithril">0</strong></p>
+                <p id="kontener-sulfur" style="display: none;">🌋 Siarka: <strong id="res-sulfur">0</strong></p>
             </div>
         </div>
 
@@ -68,7 +88,6 @@
             <div class="panel">
                 <h3>Okolica Twojej Osady</h3>
                 <div id="map-grid"></div>
-
                 <div id="map-cell-detail">
                     <h4>Podgląd pola:</h4>
                     <p id="detail-info">Kliknij na dowolny kafelek mapy, aby zobaczyć szczegóły terenu lub sąsiada.</p>
