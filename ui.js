@@ -232,7 +232,7 @@ export function renderujMape(stan, listaWioch, klikFn) {
     if (!mapGrid) return;
 
     // Ustawienia widoku
-    const radius = 8;
+    const radius = 20;
     const columns = radius * 2 + 1; // 17 kolumn dla radius 8
     mapGrid.style.gridTemplateColumns = `repeat(${columns}, 50px)`; // Dynamiczna siatka
 
