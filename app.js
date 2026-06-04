@@ -58,12 +58,24 @@ btnZarejestruj.addEventListener("click", async () => {
 
     if (villageError) return alert("Błąd tworzenia wioski: " + villageError.message);
 
-    // Inicjalizacja wszystkich zasobów z nowej tabeli
+    // Inicjalizacja pełnego arsenału 26 zasobów
     const { error: resError } = await spClient.from('village_resources').insert({
         village_id: userId,
+        // Uniwersalne
         wood: 150, stone: 120, coal: 50, food: 100,
         gold: 50, population: 10, knowledge: 0, essence: 0,
-        iron: 0, mithril: 0, crystals: 0, bones: 0, sulfur: 0, souls: 0
+        // Ludzie
+        iron: 0, silver: 0, relics: 0,
+        // Krasnoludy
+        mithril: 0, runestones: 0, ale: 0,
+        // Nieumarli
+        corpses: 0, blood: 0, black_frost: 0,
+        // Elfy
+        elderwood: 0, crystals: 0, stardust: 0,
+        // Orkowie
+        bones: 0, hides: 0, tusks: 0,
+        // Demony
+        sulfur: 0, obsidian: 0, chaos_flame: 0
     });
 
     if (resError) return alert("Błąd generowania zasobów: " + resError.message);
@@ -173,34 +185,58 @@ function aktualizujInterfejs() {
     document.getElementById("wioska-y").innerText = stanGracza.wioska.pos_y;
     document.getElementById("wioska-frakcja").innerText = stanGracza.wioska.faction || "Nieznana";
 
-    // Uniwersalne i globalne surowce
-    document.getElementById("res-wood").innerText = Math.floor(stanGracza.surowce.wood);
-    document.getElementById("res-stone").innerText = Math.floor(stanGracza.surowce.stone);
-    document.getElementById("res-coal").innerText = Math.floor(stanGracza.surowce.coal);
-    document.getElementById("res-food").innerText = Math.floor(stanGracza.surowce.food);
+    // Odświeżenie Uniwersalnych i globalnych surowców
+    document.getElementById("res-wood").innerText = Math.floor(stanGracza.surowce.wood || 0);
+    document.getElementById("res-stone").innerText = Math.floor(stanGracza.surowce.stone || 0);
+    document.getElementById("res-coal").innerText = Math.floor(stanGracza.surowce.coal || 0);
+    document.getElementById("res-food").innerText = Math.floor(stanGracza.surowce.food || 0);
+    document.getElementById("res-gold").innerText = Math.floor(stanGracza.surowce.gold || 0);
+    document.getElementById("res-population").innerText = Math.floor(stanGracza.surowce.population || 0);
+    document.getElementById("res-knowledge").innerText = Math.floor(stanGracza.surowce.knowledge || 0);
+    document.getElementById("res-essence").innerText = Math.floor(stanGracza.surowce.essence || 0);
 
-    document.getElementById("res-gold").innerText = Math.floor(stanGracza.surowce.gold);
-    document.getElementById("res-population").innerText = Math.floor(stanGracza.surowce.population);
-    document.getElementById("res-knowledge").innerText = Math.floor(stanGracza.surowce.knowledge);
-    document.getElementById("res-essence").innerText = Math.floor(stanGracza.surowce.essence);
-
-    // Unikalne surowce (wyświetlanie zależne od frakcji)
+    // Mechanika Ukrywania i Pokazywania Surowców Frakcyjnych
     const frakcja = stanGracza.wioska.faction;
-    document.getElementById("kontener-iron").style.display = frakcja === "ludzie" ? "block" : "none";
-    document.getElementById("kontener-bones").style.display = frakcja === "orkowie" ? "block" : "none";
-    document.getElementById("kontener-souls").style.display = frakcja === "nieumarli" ? "block" : "none";
-    document.getElementById("kontener-crystals").style.display = frakcja === "elfy" ? "block" : "none";
-    document.getElementById("kontener-mithril").style.display = frakcja === "krasnoludy" ? "block" : "none";
-    document.getElementById("kontener-sulfur").style.display = frakcja === "demony" ? "block" : "none";
+    const wszystkieFrakcje = ['ludzie', 'krasnoludy', 'nieumarli', 'elfy', 'orkowie', 'demony'];
 
-    if (frakcja === "ludzie") document.getElementById("res-iron").innerText = Math.floor(stanGracza.surowce.iron || 0);
-    if (frakcja === "orkowie") document.getElementById("res-bones").innerText = Math.floor(stanGracza.surowce.bones || 0);
-    if (frakcja === "nieumarli") document.getElementById("res-souls").innerText = Math.floor(stanGracza.surowce.souls || 0);
-    if (frakcja === "elfy") document.getElementById("res-crystals").innerText = Math.floor(stanGracza.surowce.crystals || 0);
-    if (frakcja === "krasnoludy") document.getElementById("res-mithril").innerText = Math.floor(stanGracza.surowce.mithril || 0);
-    if (frakcja === "demony") document.getElementById("res-sulfur").innerText = Math.floor(stanGracza.surowce.sulfur || 0);
+    // Najpierw ukrywamy wszystkie bloki
+    wszystkieFrakcje.forEach(f => {
+        const blok = document.getElementById(`frakcja-${f}`);
+        if (blok) blok.style.display = 'none';
+    });
 
-    // Odświeżenie wskaźników produkcji
+    // Potem pokazujemy tylko blok należący do gracza
+    const aktywnyBlok = document.getElementById(`frakcja-${frakcja}`);
+    if (aktywnyBlok) aktywnyBlok.style.display = 'flex';
+
+    // Aktualizacja liczników w zależności od frakcji
+    if (frakcja === "ludzie") {
+        document.getElementById("res-iron").innerText = Math.floor(stanGracza.surowce.iron || 0);
+        document.getElementById("res-silver").innerText = Math.floor(stanGracza.surowce.silver || 0);
+        document.getElementById("res-relics").innerText = Math.floor(stanGracza.surowce.relics || 0);
+    } else if (frakcja === "krasnoludy") {
+        document.getElementById("res-mithril").innerText = Math.floor(stanGracza.surowce.mithril || 0);
+        document.getElementById("res-runestones").innerText = Math.floor(stanGracza.surowce.runestones || 0);
+        document.getElementById("res-ale").innerText = Math.floor(stanGracza.surowce.ale || 0);
+    } else if (frakcja === "nieumarli") {
+        document.getElementById("res-corpses").innerText = Math.floor(stanGracza.surowce.corpses || 0);
+        document.getElementById("res-blood").innerText = Math.floor(stanGracza.surowce.blood || 0);
+        document.getElementById("res-black_frost").innerText = Math.floor(stanGracza.surowce.black_frost || 0);
+    } else if (frakcja === "elfy") {
+        document.getElementById("res-elderwood").innerText = Math.floor(stanGracza.surowce.elderwood || 0);
+        document.getElementById("res-crystals").innerText = Math.floor(stanGracza.surowce.crystals || 0);
+        document.getElementById("res-stardust").innerText = Math.floor(stanGracza.surowce.stardust || 0);
+    } else if (frakcja === "orkowie") {
+        document.getElementById("res-bones").innerText = Math.floor(stanGracza.surowce.bones || 0);
+        document.getElementById("res-hides").innerText = Math.floor(stanGracza.surowce.hides || 0);
+        document.getElementById("res-tusks").innerText = Math.floor(stanGracza.surowce.tusks || 0);
+    } else if (frakcja === "demony") {
+        document.getElementById("res-sulfur").innerText = Math.floor(stanGracza.surowce.sulfur || 0);
+        document.getElementById("res-obsidian").innerText = Math.floor(stanGracza.surowce.obsidian || 0);
+        document.getElementById("res-chaos_flame").innerText = Math.floor(stanGracza.surowce.chaos_flame || 0);
+    }
+
+    // Odświeżenie wskaźników produkcji (tych na zielono przy podstawowych surowcach)
     for (const [kodBudynku, config] of Object.entries(BALANS_BUDYNKOW)) {
         if (config.resProd) {
             const lvl = stanGracza.budynki[kodBudynku] || 0;
@@ -210,9 +246,9 @@ function aktualizujInterfejs() {
         }
     }
 
+    // Renderowanie zakładki "Budynki"
     const kontener = document.getElementById("kontener-budynkow");
     kontener.innerHTML = "";
-
     const poziomRatusza = stanGracza.budynki.town_hall || 1;
 
     for (const [kodBudynku, config] of Object.entries(BALANS_BUDYNKOW)) {
@@ -474,14 +510,20 @@ btnWyloguj.addEventListener("click", async () => {
     interwalProdukcji = null;
 
     if (stanGracza.id && stanGracza.surowce) {
-        // Zapis wszystkich aktualnych surowców z tabeli
-        await spClient.from('village_resources').update({
-            wood: Math.floor(stanGracza.surowce.wood),
-            stone: Math.floor(stanGracza.surowce.stone),
-            coal: Math.floor(stanGracza.surowce.coal),
-            food: Math.floor(stanGracza.surowce.food)
-        }).eq('village_id', stanGracza.id);
+        // Tworzymy kopię surowców do zapisu
+        let doZapisu = { ...stanGracza.surowce };
+        // Usuwamy z kopii dane których nie chcemy nadpisywać
+        delete doZapisu.id;
+        delete doZapisu.village_id;
 
+        // Zaokrąglamy wszystkie wyprodukowane w tle surowce przed wysłaniem do bazy
+        for (let klucz in doZapisu) {
+            if (typeof doZapisu[klucz] === 'number') {
+                doZapisu[klucz] = Math.floor(doZapisu[klucz]);
+            }
+        }
+
+        await spClient.from('village_resources').update(doZapisu).eq('village_id', stanGracza.id);
         await spClient.from('villages').update({ last_update: new Date().toISOString() }).eq('id', stanGracza.id);
     }
 

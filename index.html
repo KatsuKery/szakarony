@@ -19,12 +19,12 @@
 
         <label for="frakcja">Wybierz rasę (tylko rejestracja):</label><br>
         <select id="frakcja" style="margin-bottom: 15px; padding: 5px;">
-            <option value="ludzie">Ludzie (Żelazo)</option>
-            <option value="orkowie">Orkowie (Kości)</option>
-            <option value="nieumarli">Nieumarli (Dusze)</option>
-            <option value="elfy">Elfy (Kryształy)</option>
-            <option value="krasnoludy">Krasnoludy (Mithril)</option>
-            <option value="demony">Demony (Siarka)</option>
+            <option value="ludzie">Ludzie (Zakon i Imperium)</option>
+            <option value="orkowie">Orkowie (Brutalna Horda)</option>
+            <option value="nieumarli">Nieumarli (Mrok i Nekromancja)</option>
+            <option value="elfy">Elfy (Natura i Finezja)</option>
+            <option value="krasnoludy">Krasnoludy (Podziemia i Inżynieria)</option>
+            <option value="demony">Demony (Chaos i Zniszczenie)</option>
         </select><br>
 
         <button id="btn-zaloguj">Zaloguj się</button>
@@ -53,13 +53,44 @@
                 <p>✨ Esencja: <strong id="res-essence">0</strong></p>
             </div>
 
-            <div style="display: flex; gap: 20px; flex-wrap: wrap; border-top: 1px solid #ddd; padding-top: 10px; background-color: #f9f9f9;">
-                <p id="kontener-iron" style="display: none;">⛏️ Żelazo: <strong id="res-iron">0</strong></p>
-                <p id="kontener-bones" style="display: none;">🦴 Kości: <strong id="res-bones">0</strong></p>
-                <p id="kontener-souls" style="display: none;">👻 Dusze: <strong id="res-souls">0</strong></p>
-                <p id="kontener-crystals" style="display: none;">💎 Kryształy: <strong id="res-crystals">0</strong></p>
-                <p id="kontener-mithril" style="display: none;">🛡️ Mithril: <strong id="res-mithril">0</strong></p>
-                <p id="kontener-sulfur" style="display: none;">🌋 Siarka: <strong id="res-sulfur">0</strong></p>
+            <div id="kontenery-frakcyjne" style="border-top: 1px solid #ddd; padding-top: 10px; background-color: #f9f9f9;">
+
+                <div id="frakcja-ludzie" style="display: none; gap: 20px; flex-wrap: wrap;">
+                    <p>⛏️ Żelazo: <strong id="res-iron">0</strong></p>
+                    <p>🥈 Srebro: <strong id="res-silver">0</strong></p>
+                    <p>🏺 Relikwie: <strong id="res-relics">0</strong></p>
+                </div>
+
+                <div id="frakcja-krasnoludy" style="display: none; gap: 20px; flex-wrap: wrap;">
+                    <p>🛡️ Mithril: <strong id="res-mithril">0</strong></p>
+                    <p>🪨 Kamienie Runiczne: <strong id="res-runestones">0</strong></p>
+                    <p>🍺 Ale: <strong id="res-ale">0</strong></p>
+                </div>
+
+                <div id="frakcja-nieumarli" style="display: none; gap: 20px; flex-wrap: wrap;">
+                    <p>🦴 Truchła: <strong id="res-corpses">0</strong></p>
+                    <p>🩸 Krew: <strong id="res-blood">0</strong></p>
+                    <p>❄️ Czarny Szron: <strong id="res-black_frost">0</strong></p>
+                </div>
+
+                <div id="frakcja-elfy" style="display: none; gap: 20px; flex-wrap: wrap;">
+                    <p>🌳 Pradawne Drewno: <strong id="res-elderwood">0</strong></p>
+                    <p>💎 Kryształy: <strong id="res-crystals">0</strong></p>
+                    <p>✨ Gwiezdny Pył: <strong id="res-stardust">0</strong></p>
+                </div>
+
+                <div id="frakcja-orkowie" style="display: none; gap: 20px; flex-wrap: wrap;">
+                    <p>💀 Kości: <strong id="res-bones">0</strong></p>
+                    <p>⛺ Skóry: <strong id="res-hides">0</strong></p>
+                    <p>🐗 Kły Bestii: <strong id="res-tusks">0</strong></p>
+                </div>
+
+                <div id="frakcja-demony" style="display: none; gap: 20px; flex-wrap: wrap;">
+                    <p>🌋 Siarka: <strong id="res-sulfur">0</strong></p>
+                    <p>🪨 Obsydian: <strong id="res-obsidian">0</strong></p>
+                    <p>🔥 Płomienie Chaosu: <strong id="res-chaos_flame">0</strong></p>
+                </div>
+
             </div>
         </div>
 
