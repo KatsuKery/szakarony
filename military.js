@@ -92,20 +92,39 @@ async function rozstrzygnijBitwe(ruch, stanGraczaId) {
 
     // --- LOGIKA WALKI ---
     if (silaAtaku > silaObrony) {
-        // WYGRANA: Obliczamy straty (im silniejsza obrona wroga, tym więcej naszych ginie)
+        // WYGRANA: Obliczamy straty i zliczamy udźwig tych, którzy przeżyli
         const procentStrat = Math.min(0.9, silaObrony / silaAtaku);
         const noweWojsko = {};
+        let calkowityUdzwig = 0;
+
         for (const [kod, ilosc] of Object.entries(ruch.units)) {
             const przezylo = Math.floor(ilosc * (1 - procentStrat));
-            if (przezylo > 0) noweWojsko[kod] = przezylo;
+            if (przezylo > 0) {
+                noweWojsko[kod] = przezylo;
+                // Obliczamy maksymalny udźwig ocalałej jednostki
+                calkowityUdzwig += przezylo * (BALANS_JEDNOSTEK[kod]?.capacity || 0);
+            }
         }
 
-        // Generujemy łupy w postaci podstawowych surowców
-        const lup = {
-            wood: Math.floor(Math.random() * 200 * mnoznikLupu) + (100 * mnoznikLupu),
-            stone: Math.floor(Math.random() * 150 * mnoznikLupu) + (50 * mnoznikLupu),
-            gold: Math.floor(Math.random() * 100 * mnoznikLupu) + (20 * mnoznikLupu),
-        };
+        // Generujemy bazowe łupy
+        let wood = Math.floor(Math.random() * 200 * mnoznikLupu) + (100 * mnoznikLupu);
+        let stone = Math.floor(Math.random() * 150 * mnoznikLupu) + (50 * mnoznikLupu);
+        let gold = Math.floor(Math.random() * 100 * mnoznikLupu) + (20 * mnoznikLupu);
+
+        let sumaLupow = wood + stone + gold;
+
+        // Jeśli łupów jest więcej niż armia może udźwignąć, ucinamy je proporcjonalnie
+        if (sumaLupow > calkowityUdzwig && calkowityUdzwig > 0) {
+            const wspolczynnik = calkowityUdzwig / sumaLupow;
+            wood = Math.floor(wood * wspolczynnik);
+            stone = Math.floor(stone * wspolczynnik);
+            gold = Math.floor(gold * wspolczynnik);
+        } else if (calkowityUdzwig === 0) {
+            // Gdy nikt nie ma pojemności (teoretyczne zabezpieczenie)
+            wood = 0; stone = 0; gold = 0;
+        }
+
+        const lup = { wood, stone, gold };
 
         // Niszczymy pokonany obóz NPC z bazy
         if (cel.is_npc) {
@@ -122,7 +141,7 @@ async function rozstrzygnijBitwe(ruch, stanGraczaId) {
             units: noweWojsko
         }).eq('id', ruch.id);
 
-        console.log(`[WALKA] Wygrana z: ${cel.name}! Zebrano łupy. Wojsko wraca.`);
+        console.log(`[WALKA] Wygrana z: ${cel.name}! Zebrano łupy (Udźwig: ${calkowityUdzwig}). Wojsko wraca.`);
 
     } else {
         // PRZEGRANA: Armia zniszczona. Kasujemy ruch wojsk.
@@ -184,7 +203,7 @@ export async function sprawdzMaszerujaceWojska(stanGraczaId) {
             await spClient.from('troop_movements').delete().eq('id', ruch.id);
             console.log(`[POWRÓT] Wojsko wróciło z łupem: Drewno +${lup.wood || 0}, Kamień +${lup.stone || 0}, Złoto +${lup.gold || 0}.`);
 
-            // Wystawiamy na próbę mały alert do powiadomienia gracza!
+            // Wystawiamy alert, aby gracz wiedział o powrocie
             alert(`Twoje wojska powróciły z wyprawy!\nZrabowano:\n🪵 Drewno: ${lup.wood || 0}\n🪨 Kamień: ${lup.stone || 0}\n💰 Złoto: ${lup.gold || 0}`);
 
             zaktualizowanoCos = true;
