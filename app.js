@@ -1,4 +1,4 @@
-﻿import { spClient } from './config.js';
+import { spClient } from './config.js';
 import * as api from './api.js';
 import * as ui from './ui.js';
 import * as engine from './engine.js';
@@ -325,10 +325,20 @@ document.getElementById("btn-wyloguj").addEventListener("click", () => {
 });
 
 document.querySelectorAll('.btn-zakladka').forEach(b => {
-    b.addEventListener('click', (e) => {
+    // DODALIŚMY async Przed (e)
+    b.addEventListener('click', async (e) => {
         document.querySelectorAll('.btn-zakladka').forEach(btn => btn.classList.remove('aktywna'));
         e.target.classList.add('aktywna');
         document.querySelectorAll('.zakladka-tresc').forEach(t => t.classList.add('ukryty'));
-        document.getElementById(e.target.getAttribute('data-cel')).classList.remove('ukryty');
+
+        const celId = e.target.getAttribute('data-cel');
+        document.getElementById(celId).classList.remove('ukryty');
+
+        // POPRAWKA: Jeśli gracz wchodzi na mapę, czyścimy hash optymalizacji
+        // i pobieramy najświeższe dane o wojsku z bazy danych
+        if (celId.includes('map') || e.target.textContent.toLowerCase().includes('mapa')) {
+            ostatniHashMapy = ""; // To zmusi ui.js do narysowania mapy z nowym wojskiem!
+            await odswiezDaneZ_Bazy();
+        }
     });
 });
