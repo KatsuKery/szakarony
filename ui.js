@@ -38,7 +38,7 @@ export function aktualizujInterfejs(stan) {
         ludzie: "url('https://images.unsplash.com/photo-1599839619722-39751411ea63?q=80&w=1920&auto=format&fit=crop')",
         orkowie: "url('https://images.unsplash.com/photo-1536465492212-0761e389b25f?q=80&w=1920&auto=format&fit=crop')",
         nieumarli: "url('https://images.unsplash.com/photo-1509248961158-e54f6934749c?q=80&w=1920&auto=format&fit=crop')",
-        elfy: "url('https://images.unsplash.com/photo-1542273917363-3b1817f69a5d?q=80&w=1920&auto=format&fit=crop')",
+        elfy: "url('elfy.jpg')",
         krasnoludy: "url('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=1920&auto=format&fit=crop')",
         demony: "url('https://images.unsplash.com/photo-1611082697864-d62f8a846fdb?q=80&w=1920&auto=format&fit=crop')"
     };
