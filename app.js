@@ -1,4 +1,4 @@
-﻿import { spClient } from './config.js'; // Importuj bezpośrednio
+import { spClient } from './config.js';
 import * as api from './api.js';
 import * as ui from './ui.js';
 import * as engine from './engine.js';
@@ -18,7 +18,8 @@ document.getElementById("btn-potwierdz-frakcje").addEventListener("click", async
     const frakcja = document.getElementById("wybor-frakcji").value;
     document.getElementById("modal-frakcja").style.display = "none";
 
-    const { data: auth, error } = await api.spClient.auth.signUp({ email, password });
+    // Poprawka: używamy spClient zamiast api.spClient
+    const { data: auth, error } = await spClient.auth.signUp({ email, password });
     if (error) return alert(error.message);
 
     await api.insert('villages', {
@@ -47,7 +48,8 @@ document.getElementById("btn-zaloguj").addEventListener("click", async () => {
     const email = document.getElementById("email").value;
     const password = document.getElementById("haslo").value;
 
-    const { data, error } = await api.spClient.auth.signInWithPassword({ email, password });
+    // Poprawka: używamy spClient zamiast api.spClient
+    const { data, error } = await spClient.auth.signInWithPassword({ email, password });
     if (error) return alert("Błąd logowania: " + error.message);
 
     stanGracza.id = data.user.id;
@@ -130,7 +132,8 @@ window.rozbudujBudynek = async (typ) => {
 // --- WYLOGOWANIE ---
 document.getElementById("btn-wyloguj").addEventListener("click", () => {
     clearInterval(interwalProdukcji);
-    api.spClient.auth.signOut();
+    // Poprawka: używamy spClient zamiast api.spClient
+    spClient.auth.signOut();
     location.reload();
 });
 
