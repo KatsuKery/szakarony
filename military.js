@@ -1,4 +1,4 @@
-﻿import { spClient } from './config.js';
+import { spClient } from './config.js';
 import { BALANS_JEDNOSTEK } from './units.js';
 
 // 1. FUNKCJA WYSYŁAJĄCA ATAK
@@ -40,7 +40,8 @@ export async function przygotujIWyslijAtak(stanGracza, targetVillageId, wybraneJ
         }
 
         if (updates.length > 0) {
-            const { error: upsertError } = await spClient.from('village_units').upsert(updates, { onConflict: 'village_id, unit_type' });
+            // POPRAWKA: Usunięto spację po przecinku w onConflict
+            const { error: upsertError } = await spClient.from('village_units').upsert(updates, { onConflict: 'village_id,unit_type' });
             if (upsertError) throw upsertError;
         }
 
@@ -90,16 +91,14 @@ async function rozstrzygnijBitwe(ruch, villageId) {
     let opisObroncy = "Nieznany";
 
     if (cel.is_npc) {
-        // TIER NPC DECYDUJE O SILE (Możesz to w przyszłości zamienić na konkretne jednostki)
         if (cel.npc_tier === 1) { silaObrony = 50; mnoznikLupu = 1; opisObroncy = "Słaba straż (S.O: 50)"; }
         else if (cel.npc_tier === 2) { silaObrony = 250; mnoznikLupu = 4; opisObroncy = "Horda potworów (S.O: 250)"; }
         else { silaObrony = 1000; mnoznikLupu = 10; opisObroncy = "Legion Ciemności (S.O: 1000)"; }
     } else {
-        silaObrony = 100; // Obrona gracza (tymczasowa)
+        silaObrony = 100;
         opisObroncy = "Mury osady (S.O: 100)";
     }
 
-    // --- RAPORT BITEWNY (Wyświetlany w konsoli) ---
     console.log(`\n⚔️ --- RAPORT Z BITWY --- ⚔️`);
     console.log(`Cel ataku: ${cel.name}`);
     console.log(`Przeciwnik: ${opisObroncy}`);
@@ -108,7 +107,7 @@ async function rozstrzygnijBitwe(ruch, villageId) {
     if (silaAtaku > silaObrony) {
         const procentStrat = Math.min(0.9, silaObrony / silaAtaku);
         console.log(`Wynik: ZWYCIĘSTWO! 🎉`);
-        console.log(`Straty w Twojej armii: ${Math.round(procentStrat * 100)}%`);
+        console.log(`Straty w armii: ${Math.round(procentStrat * 100)}%`);
 
         const noweWojsko = {};
         let calkowityUdzwig = 0;
@@ -138,6 +137,9 @@ async function rozstrzygnijBitwe(ruch, villageId) {
         const lup = { wood, stone, gold };
         console.log(`Złupiono: 🪵${wood}, 🪨${stone}, 💰${gold}`);
 
+        // WYRAŹNA INFORMACJA O CZASIE POWROTU
+        console.log(`⏳ Twoja armia obraca się na pięcie i zaczyna marsz do domu. Powrót zajmie 30 sekund!`);
+
         if (cel.is_npc) {
             try {
                 await spClient.from('villages').delete().eq('id', cel.id);
@@ -157,7 +159,7 @@ async function rozstrzygnijBitwe(ruch, villageId) {
 
     } else {
         console.log(`Wynik: PRZEGRANA! 💀`);
-        console.log(`Cała Twoja armia została zniszczona.`);
+        console.log(`Cała Twoja armia poległa.`);
         await spClient.from('troop_movements').delete().eq('id', ruch.id);
     }
     console.log(`---------------------------\n`);
@@ -184,6 +186,9 @@ export async function sprawdzMaszerujaceWojska(villageId) {
         }
         else if (ruch.mission_type === 'return') {
             try {
+                console.log(`\n🛡️ --- PROCEDURA POWROTU WOJSKA --- 🛡️`);
+                console.log(`Otwieram bramy osady dla powracających wojsk...`);
+
                 const powracajaceWojsko = { ...ruch.units };
                 const lup = powracajaceWojsko._lup || {};
                 delete powracajaceWojsko._lup;
@@ -197,20 +202,21 @@ export async function sprawdzMaszerujaceWojska(villageId) {
 
                 const updates = [];
                 for (const [kod, ilosc] of Object.entries(powracajaceWojsko)) {
-                    if (ilosc > 0) { // Zabezpieczenie przed błędem
+                    if (ilosc > 0) {
                         const nowaIlosc = (mapaJednostek[kod] || 0) + ilosc;
                         updates.push({ village_id: villageId, unit_type: kod, quantity: nowaIlosc });
                     }
                 }
 
-                // Zabezpieczenie: Wysyłamy upsert tylko jeśli wojsko faktycznie przeżyło
                 if (updates.length > 0) {
-                    const { error: upsertErr } = await spClient.from('village_units').upsert(updates, { onConflict: 'village_id, unit_type' });
-                    if (upsertErr) console.error("Błąd przywracania wojsk:", upsertErr);
+                    console.log(`Aktualizuję armię w koszarach...`);
+                    // POPRAWKA: Usunięto spację po przecinku w onConflict
+                    const { error: upsertErr } = await spClient.from('village_units').upsert(updates, { onConflict: 'village_id,unit_type' });
+                    if (upsertErr) throw upsertErr;
                 }
 
-                // Dodawanie łupów
                 if (Object.keys(lup).length > 0) {
+                    console.log(`Dodaję zdobyte surowce do magazynu...`);
                     const { data: currRes } = await spClient.from('village_resources')
                         .select('*')
                         .eq('village_id', villageId)
@@ -224,13 +230,12 @@ export async function sprawdzMaszerujaceWojska(villageId) {
                     }
                 }
 
-                // Usunięcie ruchu po udanym powrocie
                 await spClient.from('troop_movements').delete().eq('id', ruch.id);
-                console.log(`[POWRÓT] Wojska wróciły! Zrabowano: Drewno:${lup.wood || 0}, Kamień:${lup.stone || 0}, Złoto:${lup.gold || 0}`);
+                console.log(`✅ [SUKCES] Wojska bezpiecznie wróciły! Zrabowano: Drewno:${lup.wood || 0}, Kamień:${lup.stone || 0}, Złoto:${lup.gold || 0}\n`);
                 zaktualizowanoCos = true;
 
             } catch (err) {
-                console.error("Krytyczny błąd podczas powrotu wojsk:", err);
+                console.error("❌ KRYTYCZNY BŁĄD PODCZAS POWROTU WOJSK:", err);
             }
         }
     }
