@@ -39,7 +39,6 @@ export function aktualizujInterfejs(stan) {
     };
 
     if (tlaFrakcji[frakcja]) {
-        // Dodajemy ciemny gradient, aby białe panele w grze były czytelne
         document.body.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), ${tlaFrakcji[frakcja]}`;
         document.body.style.backgroundSize = "cover";
         document.body.style.backgroundPosition = "center";
@@ -68,7 +67,6 @@ export function aktualizujInterfejs(stan) {
         }
     }
 
-    // --- WSPÓLNY SŁOWNIK IKON DLA CAŁEJ GRY ---
     const ikony = {
         wood: '🪵', stone: '🪨', coal: '🔥', food: '🍞', gold: '💰', pop: '👥', population: '👥',
         iron: '⛏️', silver: '🥈', relics: '🏺', mithril: '🛡️', runestones: '🪨', ale: '🍺',
@@ -76,7 +74,6 @@ export function aktualizujInterfejs(stan) {
         bones: '💀', hides: '⛺', tusks: '🐗', sulfur: '🌋', obsidian: '🪨', chaos_flame: '🔥'
     };
 
-    // Eksportujemy słownik pod klucz globalny w oknie, by móc go używać w innych miejscach UI
     window.ikonySurowcow = ikony;
 
     // --- RENDEROWANIE BUDYNKÓW ---
@@ -235,10 +232,14 @@ export function aktualizujInterfejs(stan) {
 export function renderujMape(stan, listaWioch, klikFn) {
     const mapGrid = document.getElementById('map-grid');
     if (!mapGrid) return;
-    mapGrid.innerHTML = "";
 
     // Zwiększamy widoczność radaru, żeby gracz widział szerszą okolicę wokół osady
-    const radius = 4;
+    const radius = 8;
+    const columns = radius * 2 + 1; // Dynamicznie obliczamy liczbę kolumn
+    mapGrid.style.gridTemplateColumns = `repeat(${columns}, 50px)`; // Dynamiczne ustawienie szerokości kolumn
+
+    mapGrid.innerHTML = "";
+
     const mapaWioch = {};
     listaWioch.forEach(v => mapaWioch[`${v.pos_x}_${v.pos_y}`] = v);
 
