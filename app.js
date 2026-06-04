@@ -1,4 +1,4 @@
-import { spClient } from './config.js';
+﻿import { spClient } from './config.js';
 import * as api from './api.js';
 import * as ui from './ui.js';
 import * as engine from './engine.js';
@@ -28,10 +28,10 @@ document.getElementById("btn-potwierdz-frakcje").addEventListener("click", async
         pos_x: Math.floor(Math.random() * 80) + 10,
         pos_y: Math.floor(Math.random() * 80) + 10,
         faction: frakcja,
-        last_update: new Date().toISOString()
+        last_update: new Date().toISOString(),
+        is_premium: false // Domyślnie zwykłe konto
     });
 
-    // ZMIANA: Każdy surowiec (podstawowy i unikalny) ustawiony na 1000 na start!
     await api.insert('village_resources', {
         village_id: auth.user.id,
         wood: 1000, stone: 1000, coal: 1000, food: 1000, gold: 1000, population: 1000, knowledge: 1000, essence: 1000,
@@ -137,7 +137,6 @@ window.rozbudujBudynek = async (typ) => {
     const lvl = stanGracza.budynki[typ] || 0;
     const koszt = engine.obliczKoszt(typ, lvl);
 
-    // Dynamiczna walidacja wszystkich surowców
     for (const [surowiec, wymaganaIlosc] of Object.entries(koszt)) {
         const posiadane = stanGracza.surowce[surowiec] || 0;
         if (posiadane < wymaganaIlosc) {
@@ -145,7 +144,6 @@ window.rozbudujBudynek = async (typ) => {
         }
     }
 
-    // Dynamiczne odejmowanie surowców wymaganych przez budynek
     const surowceDoAktualizacji = {};
     for (const [surowiec, wymaganaIlosc] of Object.entries(koszt)) {
         stanGracza.surowce[surowiec] -= wymaganaIlosc;
@@ -167,6 +165,15 @@ window.rozbudujBudynek = async (typ) => {
 
 window.rekrutujJednostke = async function (kod, ilosc) {
     if (!stanGracza.id) return;
+    if (isNaN(ilosc) || ilosc <= 0) return alert("Wpisz poprawną ilość jednostek!");
+
+    // --- WALIDACJA PREMIUM / LIMITÓW KOLEJKI ---
+    const isPremium = stanGracza.wioska.is_premium || false;
+    const maxSlots = isPremium ? 3 : 1;
+
+    if (stanGracza.kolejkaWojsko && stanGracza.kolejkaWojsko.length >= maxSlots) {
+        return alert(`Osiągnięto limit kolejki szkolenia! Twoje konto ma status ${isPremium ? 'PREMIUM' : 'ZWYKŁE'}, co pozwala na maksymalnie ${maxSlots} slot(y) w kolejce.`);
+    }
 
     const configJednostki = BALANS_JEDNOSTEK[kod];
     if (!configJednostki) return;
@@ -178,7 +185,7 @@ window.rekrutujJednostke = async function (kod, ilosc) {
         'bones', 'hides', 'tusks', 'sulfur', 'obsidian', 'chaos_flame'
     ];
 
-    // 1. Walidacja kosztów
+    // 1. Walidacja kosztów surowcowych
     for (const res of wszystkieSurowce) {
         if (configJednostki[res] && configJednostki[res] > 0) {
             const wymagane = configJednostki[res] * ilosc;
@@ -191,7 +198,7 @@ window.rekrutujJednostke = async function (kod, ilosc) {
         }
     }
 
-    // 2. Pobieranie surowców
+    // 2. Pobieranie surowców z magazynu lokalnego
     const surowceDoAktualizacji = {};
     for (const res of wszystkieSurowce) {
         if (configJednostki[res] && configJednostki[res] > 0) {
@@ -203,13 +210,23 @@ window.rekrutujJednostke = async function (kod, ilosc) {
     try {
         await spClient.from('village_resources').update(surowceDoAktualizacji).eq('village_id', stanGracza.id);
 
-        const czasSzkolenia = configJednostki.time * ilosc;
+        // --- DYNAMICZNE DOLICZANIE CZASU (SEKWENCYJNOŚĆ) ---
+        let bazaCzasu = Date.now();
+        if (stanGracza.kolejkaWojsko && stanGracza.kolejkaWojsko.length > 0) {
+            // Pobieramy czas ukończenia OSTATNIEGO zadania w kolejce
+            const ostatnieZlecenie = stanGracza.kolejkaWojsko[stanGracza.kolejkaWojsko.length - 1];
+            bazaCzasu = new Date(ostatnieZlecenie.finish_time).getTime();
+        }
 
+        const czasSzkoleniaTotal = configJednostki.time * ilosc;
+        const ostatecznyFinishTime = new Date(bazaCzasu + czasSzkoleniaTotal * 1000).toISOString();
+
+        // 3. Wrzucenie na koniec kolejki w bazie danych
         await api.insert('unit_queue', {
             village_id: stanGracza.id,
             unit_type: kod,
             quantity: ilosc,
-            finish_time: new Date(Date.now() + czasSzkolenia * 1000).toISOString()
+            finish_time: ostatecznyFinishTime
         });
 
         await odswiezDaneZ_Bazy();
@@ -217,6 +234,27 @@ window.rekrutujJednostke = async function (kod, ilosc) {
     } catch (error) {
         console.error("Błąd podczas rekrutacji:", error);
         alert("Błąd połączenia z bazą. Spróbuj ponownie.");
+    }
+};
+
+// --- FUNKCJA TESTOWA: PRZEŁĄCZANIE STATUSU PREMIUM ---
+window.przelaczPremium = async function () {
+    if (!stanGracza.id) return;
+    const obecnyStatus = stanGracza.wioska.is_premium || false;
+    const nowyStatus = !obecnyStatus;
+
+    try {
+        const { error } = await spClient
+            .from('villages')
+            .update({ is_premium: nowyStatus })
+            .eq('id', stanGracza.id);
+
+        if (error) throw error;
+        alert(`Status Premium został zmieniony! Obecnie: ${nowyStatus ? 'AKTYWNE' : 'NIEAKTYWNE'}`);
+        await odswiezDaneZ_Bazy();
+    } catch (err) {
+        console.error(err);
+        alert("Nie udało się zmienić statusu Premium w bazie danych.");
     }
 };
 

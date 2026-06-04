@@ -106,19 +106,51 @@ export function aktualizujInterfejs(stan) {
             bones: '💀', hides: '⛺', tusks: '🐗', sulfur: '🌋', obsidian: '🪨', chaos_flame: '🔥'
         };
 
+        const wszystkieSurowceKeys = Object.keys(ikony);
+        const isPremium = stan.wioska.is_premium || false;
+        const maxSlots = isPremium ? 3 : 1;
+
+        // Nagłówek informujący o statusie konta Premium i zajętych slotach w kolejce szkolenia
+        let aktualneTaski = stan.kolejkaWojsko ? stan.kolejkaWojsko.length : 0;
+        kontenerWojska.innerHTML += `
+            <div style="background: #f1f2f6; padding: 10px; border-radius: 5px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid ${isPremium ? '#f1c40f' : '#7f8c8d'};">
+                <div>
+                    Status konta: <strong style="color: ${isPremium ? '#f39c12' : '#2c3e50'};">${isPremium ? '👑 PREMIUM' : '👤 ZWYKŁE'}</strong>
+                    <br><small style="color: #7f8c8d;">Kolejka rekrutacji: <strong>${aktualneTaski} / ${maxSlots}</strong> slotów</small>
+                </div>
+                <button onclick="window.przelaczPremium()" style="background: ${isPremium ? '#e74c3c' : '#f1c40f'}; color: ${isPremium ? 'white' : 'black'}; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 0.85em; font-weight: bold;">
+                    ${isPremium ? 'Wyłącz Premium (Test)' : 'Włącz Premium (Test)'}
+                </button>
+            </div>
+        `;
+
         for (const [kod, config] of Object.entries(BALANS_JEDNOSTEK)) {
             if (config.faction !== frakcja) continue;
 
             const posiadane = stan.jednostki && stan.jednostki[kod] ? stan.jednostki[kod] : 0;
 
-            // Logika wyświetlania odliczania kolejki
+            // --- PRZELICZNIK MAX ---
+            let maxMozliwe = Infinity;
+            let maKoszty = false;
+
+            wszystkieSurowceKeys.forEach(res => {
+                if (config[res] && config[res] > 0) {
+                    maKoszty = true;
+                    const posiadaneRes = stan.surowce[res] || 0;
+                    const ileZtego = Math.floor(posiadaneRes / config[res]);
+                    if (ileZtego < maxMozliwe) maxMozliwe = ileZtego;
+                }
+            });
+            if (!maKoszty || maxMozliwe === Infinity) maxMozliwe = 0;
+
+            // Renderowanie statusu odliczania kolejki szkolenia wojskowego
             const zleceniaWojska = stan.kolejkaWojsko ? stan.kolejkaWojsko.filter(q => q.unit_type === kod) : [];
             let tekstKolejki = '';
 
             if (zleceniaWojska.length > 0) {
                 tekstKolejki = zleceniaWojska.map(q => {
                     const sekundy = Math.max(0, Math.floor((new Date(q.finish_time) - new Date()) / 1000));
-                    return `<br><span style="color: #e67e22; font-size: 0.9em; font-weight: bold;">⏳ W szkoleniu: ${q.quantity} (zostało ${sekundy >= 60 ? Math.floor(sekundy / 60) + 'm' : sekundy + 's'})</span>`;
+                    return `<br><span style="color: #e67e22; font-size: 0.9em; font-weight: bold;">⏳ W szkoleniu: ${q.quantity} (zostało ${sekundy >= 60 ? Math.floor(sekundy / 60) + 'm ' + (sekundy % 60) + 's' : sekundy + 's'})</span>`;
                 }).join('');
             }
 
@@ -128,15 +160,25 @@ export function aktualizujInterfejs(stan) {
                 .join(' ');
 
             kontenerWojska.innerHTML += `
-                <div class="budynek-wiersz">
-                    <div>
-                        <strong>${config.name}</strong> <span style="color:#27ae60; font-weight:bold;">(Masz: ${posiadane})</span>
+                <div class="budynek-wiersz" style="padding: 15px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 5px; background: #fff;">
+                    <div style="flex: 1;">
+                        <strong style="font-size: 1.1em;">${config.name}</strong> <span style="color:#27ae60; font-weight:bold;">(Masz: ${posiadane})</span>
                         ${tekstKolejki}
                         <br><small style="color: #7f8c8d;">Rola: ${config.role} | ⚔️${config.att} Atak | 🛡️${config.def} Obrona | 🐎Szybkość: ${config.speed}m/pole</small>
+                        <div style="font-size: 0.85em; margin-top: 5px; color: #34495e;">Koszt jedn.: ${kosztyTekst} | ⏱️${config.time}s</div>
                     </div>
-                    <div class="budynek-akcje" style="text-align: right;">
-                        <div style="font-size: 0.8em; margin-bottom: 5px;">Koszty: ${kosztyTekst} | ⏱️${config.time}s</div>
-                        <button onclick="window.rekrutujJednostke('${kod}', 1)">Rekrutuj (1)</button>
+                    <div class="budynek-akcje" style="text-align: right; min-width: 180px;">
+                        <div style="margin-bottom: 8px;">
+                            <input type="number" id="ile-${kod}" value="1" min="1" max="${maxMozliwe}" style="width: 60px; padding: 5px; text-align: center; border-radius: 3px; border: 1px solid #ccc;">
+                            <span onclick="document.getElementById('ile-${kod}').value = ${maxMozliwe}" style="cursor: pointer; text-decoration: underline; font-size: 0.85em; color: #2980b9; margin-left: 5px; font-weight: bold;">
+                                (Max: ${maxMozliwe})
+                            </span>
+                        </div>
+                        <button onclick="window.rekrutujJednostke('${kod}', parseInt(document.getElementById('ile-${kod}').value) || 1)" 
+                                style="width: 100%; padding: 7px; background: #27ae60; color: white; border: none; border-radius: 3px; cursor: pointer; font-weight: bold;"
+                                ${maxMozliwe === 0 ? 'disabled style="background:#bdc3c7; cursor:not-allowed;"' : ''}>
+                            Rekrutuj
+                        </button>
                     </div>
                 </div>`;
         }
