@@ -33,17 +33,6 @@ export function aktualizujInterfejs(stan) {
 
     const frakcja = stan.wioska.faction;
 
-    // --- DYNAMICZNE TŁO FRAKCJI ---
-    const tlaFrakcji = {};
-
-    if (tlaFrakcji[frakcja]) {
-        document.body.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), ${tlaFrakcji[frakcja]}`;
-        document.body.style.backgroundSize = "cover";
-        document.body.style.backgroundPosition = "center";
-        document.body.style.backgroundAttachment = "fixed";
-        document.body.style.transition = "background-image 1s ease-in-out";
-    }
-
     const wszystkieFrakcje = ['ludzie', 'krasnoludy', 'nieumarli', 'elfy', 'orkowie', 'demony'];
     wszystkieFrakcje.forEach(f => {
         const blok = document.getElementById(`frakcja-${f}`);
@@ -74,7 +63,6 @@ export function aktualizujInterfejs(stan) {
 
     window.ikonySurowcow = ikony;
 
-    // --- RENDEROWANIE BUDYNKÓW ---
     const kontenerBudynkow = document.getElementById("kontener-budynkow");
     if (kontenerBudynkow) {
         kontenerBudynkow.innerHTML = "";
@@ -113,11 +101,11 @@ export function aktualizujInterfejs(stan) {
 
                 let przycisk = budowa
                     ? `<button disabled style="width: 100%; padding: 7px; background: #bdc3c7; color: white; border: none; border-radius: 3px; cursor: not-allowed; font-weight: bold;">
-                        Budowa: ${Math.max(0, Math.floor((new Date(budowa.finish_time) - new Date()) / 1000))}s
-                       </button>`
+                       Budowa: ${Math.max(0, Math.floor((new Date(budowa.finish_time) - new Date()) / 1000))}s
+                      </button>`
                     : `<button onclick="window.rozbudujBudynek('${kod}')" style="width: 100%; padding: 7px; background: #2980b9; color: white; border: none; border-radius: 3px; cursor: pointer; font-weight: bold;">
-                        Rozbuduj
-                       </button>`;
+                       Rozbuduj
+                      </button>`;
 
                 kontenerBudynkow.innerHTML += `
                     <div class="budynek-wiersz" style="padding: 15px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.95); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -134,7 +122,6 @@ export function aktualizujInterfejs(stan) {
         }
     }
 
-    // --- RENDEROWANIE KOSZAR ---
     const kontenerWojska = document.getElementById("kontener-wojska");
     if (kontenerWojska) {
         const zapamietaneWartosci = {};
@@ -231,10 +218,12 @@ export function renderujMape(stan, listaWioch, klikFn) {
     const mapGrid = document.getElementById('map-grid');
     if (!mapGrid) return;
 
-    // Ustawienia widoku
+    // DEBUG: Tu sprawdzisz, czy NPC docierają do UI
+    console.log("RENDER MAPY - Lista wiosek:", listaWioch);
+
     const radius = 20;
-    const columns = radius * 2 + 1; // 17 kolumn dla radius 8
-    mapGrid.style.gridTemplateColumns = `repeat(${columns}, 50px)`; // Dynamiczna siatka
+    const columns = radius * 2 + 1;
+    mapGrid.style.gridTemplateColumns = `repeat(${columns}, 50px)`;
 
     mapGrid.innerHTML = "";
     const mapaWioch = {};
@@ -254,10 +243,9 @@ export function renderujMape(stan, listaWioch, klikFn) {
             }
             else if (wioska) {
                 if (wioska.is_npc) {
+                    console.log(`Rysuję NPC na ${x},${y}`);
                     cell.classList.add('npc-camp');
-                    if (wioska.npc_tier === 1) cell.textContent = "🔥";
-                    if (wioska.npc_tier === 2) cell.textContent = "🏕️";
-                    if (wioska.npc_tier === 3) cell.textContent = "💀";
+                    cell.textContent = wioska.npc_tier === 1 ? "🔥" : (wioska.npc_tier === 2 ? "🏕️" : "💀");
                     cell.style.border = "2px solid #e67e22";
                 } else {
                     cell.classList.add('enemy-village');
@@ -292,7 +280,8 @@ export function pokazSzczegolyPola(x, y, wioska, stanGracza) {
         return;
     }
 
-    if (wioska.id === stanGracza.id) {
+    // POPRAWKA: Porównujemy Village ID (village.id) z Village ID (stanGracza.wioska.id)
+    if (wioska.id === stanGracza.wioska.id) {
         detailInfo.innerHTML = `
             <div style="padding: 15px; background: rgba(39, 174, 96, 0.8); color: white; border-radius: 5px;">
                 <h3 style="margin-top:0;">Twoja Osada: ${wioska.name}</h3>
