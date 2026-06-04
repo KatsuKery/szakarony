@@ -23,12 +23,10 @@ export function aktualizujInterfejs(stan) {
     bezpiecznyTekst("res-knowledge", stan.surowce.knowledge);
     bezpiecznyTekst("res-essence", stan.surowce.essence);
 
-    // Automatyczna produkcja na godzinę
     for (const [kod, cfg] of Object.entries(BALANS_BUDYNKOW)) {
         if (cfg.resProd) {
             const poziom = stan.budynki[kod] || 0;
-            const produkcjaNaGodzine = poziom * cfg.prodBaza * 60;
-            bezpiecznyTekst(`prod-${cfg.resProd}`, produkcjaNaGodzine);
+            bezpiecznyTekst(`prod-${cfg.resProd}`, poziom * cfg.prodBaza * 60);
         }
     }
 
@@ -38,21 +36,6 @@ export function aktualizujInterfejs(stan) {
         if (blok) blok.style.display = (f === frakcja) ? 'flex' : 'none';
     });
 
-    const mapowanieFrakcji = {
-        ludzie: { iron: 'res-iron', silver: 'res-silver', relics: 'res-relics' },
-        krasnoludy: { mithril: 'res-mithril', runestones: 'res-runestones', ale: 'res-ale' },
-        nieumarli: { corpses: 'res-corpses', blood: 'res-blood', black_frost: 'res-black_frost' },
-        elfy: { elderwood: 'res-elderwood', crystals: 'res-crystals', stardust: 'res-stardust' },
-        orkowie: { bones: 'res-bones', hides: 'res-hides', tusks: 'res-tusks' },
-        demony: { sulfur: 'res-sulfur', obsidian: 'res-obsidian', chaos_flame: 'res-chaos_flame' }
-    };
-
-    if (mapowanieFrakcji[frakcja]) {
-        for (const [klucz, elementId] of Object.entries(mapowanieFrakcji[frakcja])) {
-            bezpiecznyTekst(elementId, stan.surowce[klucz]);
-        }
-    }
-
     const kontener = document.getElementById("kontener-budynkow");
     if (!kontener) return;
     kontener.innerHTML = "";
@@ -60,23 +43,39 @@ export function aktualizujInterfejs(stan) {
     const poziomRatusza = stan.budynki.town_hall || 1;
     const wszystkieUnikalne = Object.values(BUDYNKI_FRAKCYJNE).flat();
 
+    // 1. Grupowanie budynków
+    const grupy = { "Główne": [], "Surowce": [], "Specjalne": [], "Wojskowe": [] };
     for (const [kod, config] of Object.entries(BALANS_BUDYNKOW)) {
         if (wszystkieUnikalne.includes(kod) && !BUDYNKI_FRAKCYJNE[frakcja]?.includes(kod)) continue;
+        const kat = config.kategoria || "Inne";
+        if (!grupy[kat]) grupy[kat] = [];
+        grupy[kat].push({ kod, config });
+    }
 
-        const lvl = stan.budynki[kod] || 0;
-        const koszt = obliczKoszt(kod, lvl);
-        const czas = obliczCzasBudowy(kod, lvl, poziomRatusza);
-        const budowa = stan.kolejka.find(q => q.building_type === kod);
+    // 2. Renderowanie grup
+    for (const [nazwaKat, budynki] of Object.entries(grupy)) {
+        if (budynki.length === 0) continue;
+        kontener.innerHTML += `<h3 style="margin: 20px 0 5px 0; border-bottom: 2px solid #ccc;">${nazwaKat}</h3>`;
 
-        let przycisk = budowa
-            ? `<button disabled>Budowa: ${Math.max(0, Math.floor((new Date(budowa.finish_time) - new Date()) / 1000))}s</button>`
-            : `<button onclick="window.rozbudujBudynek('${kod}')">Rozbuduj</button>`;
+        for (const { kod, config } of budynki) {
+            const lvl = stan.budynki[kod] || 0;
+            const koszt = obliczKoszt(kod, lvl);
+            const czas = obliczCzasBudowy(kod, lvl, poziomRatusza);
+            const budowa = stan.kolejka.find(q => q.building_type === kod);
 
-        kontener.innerHTML += `
-            <div class="budynek-wiersz">
-                <div><strong>${config.name}</strong> (lvl ${lvl})</div>
-                <div>${przycisk} <br><small>Koszt: 🪵${koszt.wood} 🪨${koszt.stone}</small></div>
-            </div>`;
+            let przycisk = budowa
+                ? `<button disabled>Budowa: ${Math.max(0, Math.floor((new Date(budowa.finish_time) - new Date()) / 1000))}s</button>`
+                : `<button onclick="window.rozbudujBudynek('${kod}')">Rozbuduj</button>`;
+
+            kontener.innerHTML += `
+                <div class="budynek-wiersz">
+                    <div><strong>${config.name}</strong> (lvl ${lvl})</div>
+                    <div class="budynek-akcje" style="text-align: right;">
+                        <div style="font-size: 0.8em; margin-bottom: 5px;">🪵${koszt.wood} 🪨${koszt.stone} | ${czas >= 60 ? Math.floor(czas / 60) + 'm' : czas + 's'}</div>
+                        ${przycisk}
+                    </div>
+                </div>`;
+        }
     }
 }
 
@@ -93,18 +92,9 @@ export function renderujMape(stan, listaWioch, klikFn) {
             const cell = document.createElement('div');
             cell.className = 'map-cell';
             const wioska = mapaWioch[`${x}_${y}`];
-
-            if (x === stan.wioska.pos_x && y === stan.wioska.pos_y) {
-                cell.classList.add('my-village');
-                cell.textContent = "🏠";
-            } else if (wioska) {
-                cell.classList.add('enemy-village');
-                cell.textContent = "🏰";
-            } else {
-                cell.classList.add('empty-field');
-                cell.textContent = "🌲";
-            }
-
+            if (x === stan.wioska.pos_x && y === stan.wioska.pos_y) { cell.classList.add('my-village'); cell.textContent = "🏠"; }
+            else if (wioska) { cell.classList.add('enemy-village'); cell.textContent = "🏰"; }
+            else { cell.classList.add('empty-field'); cell.textContent = "🌲"; }
             cell.addEventListener('click', () => klikFn(x, y, wioska, stan.id));
             mapGrid.appendChild(cell);
         }
@@ -113,7 +103,5 @@ export function renderujMape(stan, listaWioch, klikFn) {
 
 export function pokazSzczegolyPola(x, y, wioska, stanGraczaId) {
     const detailInfo = document.getElementById('detail-info');
-    if (detailInfo) {
-        detailInfo.innerHTML = wioska ? `Wioska: ${wioska.name} (${wioska.faction})` : `Dzika głusza (${x}|${y})`;
-    }
+    if (detailInfo) detailInfo.innerHTML = wioska ? `Wioska: ${wioska.name} (${wioska.faction})` : `Dzika głusza (${x}|${y})`;
 }

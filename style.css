@@ -23,7 +23,7 @@ strong {
     color: #2c3e50;
 }
 
-/* --- PASEK NAWIGACJI (ZAK£ADKI) --- */
+/* --- PASEK NAWIGACJI --- */
 .nawigacja-gra {
     display: flex;
     gap: 10px;
@@ -61,40 +61,36 @@ strong {
 }
 
 /* --- SEKCJA BUDYNKÓW --- */
+#kontener-budynkow h3 {
+    margin: 25px 0 10px 0;
+    border-bottom: 2px solid #bdc3c7;
+    color: #34495e;
+    padding-bottom: 5px;
+}
+
 .budynek-wiersz {
     border-bottom: 1px solid #eee;
-    padding: 10px 0;
+    padding: 12px 0;
     display: flex;
-    flex-direction: row; /* Zmienione na wiersz dla czytelnoœci */
+    flex-direction: row;
     justify-content: space-between;
     align-items: center;
     gap: 15px;
 }
 
-.btn-budowy {
-    padding: 5px 10px;
-    background-color: #2ecc71;
-    color: white;
-    border: none;
-    border-radius: 3px;
-    cursor: pointer;
-    font-weight: bold;
+.budynek-akcje {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; /* Wyrównanie do prawej */
+    gap: 5px;
 }
-
-    .btn-budowy:hover {
-        background-color: #27ae60;
-    }
 
 button {
     cursor: pointer;
+    padding: 5px 10px;
 }
 
-.koszt-tekst {
-    font-size: 0.85em;
-    color: #7f8c8d;
-}
-
-/* --- STYLE SYSTEMU MAPY ŒWIATA --- */
+/* --- STYLE MAPY ŒWIATA --- */
 #map-grid {
     display: grid;
     grid-template-columns: repeat(7, 50px);
@@ -142,21 +138,6 @@ button {
     border-radius: 6px;
     margin-top: 10px;
 }
-
-    #map-cell-detail button {
-        margin-top: 8px;
-        padding: 4px 10px;
-        background-color: #e67e22;
-        color: white;
-        border: none;
-        border-radius: 3px;
-        cursor: pointer;
-        font-weight: bold;
-    }
-
-        #map-cell-detail button:hover {
-            background-color: #d35400;
-        }
 
 /* --- RESPONSYWNOŒÆ --- */
 @media (max-width: 600px) {
