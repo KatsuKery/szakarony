@@ -53,7 +53,7 @@ export async function usunZkolejkiWojska(id) {
     return await spClient.from('unit_queue').delete().eq('id', id);
 }
 
-export async function fetchNearbyVillages(x, y, radius = 20) {
+export async function fetchNearbyVillages(x, y, radius = 50) {
     const { data, error } = await spClient.from('villages')
         // Doda³em 'is_npc' i 'owner_id', aby UI mia³o pe³n¹ wiedzê
         .select('id, name, pos_x, pos_y, faction, is_npc, owner_id')
