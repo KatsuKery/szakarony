@@ -1,4 +1,5 @@
 ﻿import { BALANS_BUDYNKOW, BUDYNKI_FRAKCYJNE } from './config.js';
+import { BALANS_JEDNOSTEK } from './units.js';
 import { obliczKoszt, obliczCzasBudowy } from './engine.js';
 
 function bezpiecznyTekst(id, wartosc) {
@@ -31,48 +32,110 @@ export function aktualizujInterfejs(stan) {
     }
 
     const frakcja = stan.wioska.faction;
-    ['ludzie', 'krasnoludy', 'nieumarli', 'elfy', 'orkowie', 'demony'].forEach(f => {
+    const wszystkieFrakcje = ['ludzie', 'krasnoludy', 'nieumarli', 'elfy', 'orkowie', 'demony'];
+    wszystkieFrakcje.forEach(f => {
         const blok = document.getElementById(`frakcja-${f}`);
         if (blok) blok.style.display = (f === frakcja) ? 'flex' : 'none';
     });
 
-    const kontener = document.getElementById("kontener-budynkow");
-    if (!kontener) return;
-    kontener.innerHTML = "";
+    // Modyfikacja mapowania surowców dla unikalnych paneli górnych
+    const mapowanieFrakcji = {
+        ludzie: { iron: 'res-iron', silver: 'res-silver', relics: 'res-relics' },
+        krasnoludy: { mithril: 'res-mithril', runestones: 'res-runestones', ale: 'res-ale' },
+        nieumarli: { corpses: 'res-corpses', blood: 'res-blood', black_frost: 'res-black_frost' },
+        elfy: { elderwood: 'res-elderwood', crystals: 'res-crystals', stardust: 'res-stardust' },
+        orkowie: { bones: 'res-bones', hides: 'res-hides', tusks: 'res-tusks' },
+        demony: { sulfur: 'res-sulfur', obsidian: 'res-obsidian', chaos_flame: 'res-chaos_flame' }
+    };
 
-    const poziomRatusza = stan.budynki.town_hall || 1;
-    const wszystkieUnikalne = Object.values(BUDYNKI_FRAKCYJNE).flat();
-
-    // 1. Grupowanie budynków
-    const grupy = { "Główne": [], "Surowce": [], "Specjalne": [], "Wojskowe": [] };
-    for (const [kod, config] of Object.entries(BALANS_BUDYNKOW)) {
-        if (wszystkieUnikalne.includes(kod) && !BUDYNKI_FRAKCYJNE[frakcja]?.includes(kod)) continue;
-        const kat = config.kategoria || "Inne";
-        if (!grupy[kat]) grupy[kat] = [];
-        grupy[kat].push({ kod, config });
+    if (mapowanieFrakcji[frakcja]) {
+        for (const [klucz, elementId] of Object.entries(mapowanieFrakcji[frakcja])) {
+            bezpiecznyTekst(elementId, stan.surowce[klucz]);
+        }
     }
 
-    // 2. Renderowanie grup
-    for (const [nazwaKat, budynki] of Object.entries(grupy)) {
-        if (budynki.length === 0) continue;
-        kontener.innerHTML += `<h3 style="margin: 20px 0 5px 0; border-bottom: 2px solid #ccc;">${nazwaKat}</h3>`;
+    // --- RENDEROWANIE BUDYNKÓW ---
+    const kontenerBudynkow = document.getElementById("kontener-budynkow");
+    if (kontenerBudynkow) {
+        kontenerBudynkow.innerHTML = "";
 
-        for (const { kod, config } of budynki) {
-            const lvl = stan.budynki[kod] || 0;
-            const koszt = obliczKoszt(kod, lvl);
-            const czas = obliczCzasBudowy(kod, lvl, poziomRatusza);
-            const budowa = stan.kolejka.find(q => q.building_type === kod);
+        const poziomRatusza = stan.budynki.town_hall || 1;
+        const wszystkieUnikalne = Object.values(BUDYNKI_FRAKCYJNE).flat();
 
-            let przycisk = budowa
-                ? `<button disabled>Budowa: ${Math.max(0, Math.floor((new Date(budowa.finish_time) - new Date()) / 1000))}s</button>`
-                : `<button onclick="window.rozbudujBudynek('${kod}')">Rozbuduj</button>`;
+        // 1. Grupowanie budynków
+        const grupy = { "Główne": [], "Surowce": [], "Specjalne": [], "Wojskowe": [] };
+        for (const [kod, config] of Object.entries(BALANS_BUDYNKOW)) {
+            if (wszystkieUnikalne.includes(kod) && !BUDYNKI_FRAKCYJNE[frakcja]?.includes(kod)) continue;
+            const kat = config.kategoria || "Inne";
+            if (!grupy[kat]) grupy[kat] = [];
+            grupy[kat].push({ kod, config });
+        }
 
-            kontener.innerHTML += `
+        // 2. Renderowanie grup
+        for (const [nazwaKat, budynki] of Object.entries(grupy)) {
+            if (budynki.length === 0) continue;
+            kontenerBudynkow.innerHTML += `<h3 style="margin: 20px 0 5px 0; border-bottom: 2px solid #ccc;">${nazwaKat}</h3>`;
+
+            for (const { kod, config } of budynki) {
+                const lvl = stan.budynki[kod] || 0;
+                const koszt = obliczKoszt(kod, lvl);
+                const czas = obliczCzasBudowy(kod, lvl, poziomRatusza);
+                const budowa = stan.kolejka.find(q => q.building_type === kod);
+
+                let przycisk = budowa
+                    ? `<button disabled>Budowa: ${Math.max(0, Math.floor((new Date(budowa.finish_time) - new Date()) / 1000))}s</button>`
+                    : `<button onclick="window.rozbudujBudynek('${kod}')">Rozbuduj</button>`;
+
+                kontenerBudynkow.innerHTML += `
+                    <div class="budynek-wiersz">
+                        <div><strong>${config.name}</strong> (lvl ${lvl})</div>
+                        <div class="budynek-akcje" style="text-align: right;">
+                            <div style="font-size: 0.8em; margin-bottom: 5px;">🪵${koszt.wood} 🪨${koszt.stone} | ${czas >= 60 ? Math.floor(czas / 60) + 'm' : czas + 's'}</div>
+                            ${przycisk}
+                        </div>
+                    </div>`;
+            }
+        }
+    }
+
+    // --- RENDEROWANIE KOSZAR ---
+    const kontenerWojska = document.getElementById("kontener-wojska");
+    if (kontenerWojska) {
+        kontenerWojska.innerHTML = "";
+
+        // Słownik emoji dla poprawnego renderowania kosztów każdego zasobu
+        const ikony = {
+            wood: '🪵', stone: '🪨', coal: '🔥', food: '🍞', gold: '💰', pop: '👥',
+            iron: '⛏️', silver: '🥈', relics: '🏺',
+            mithril: '🛡️', runestones: '🪨', ale: '🍺',
+            corpses: '🦴', blood: '🩸', black_frost: '❄️',
+            elderwood: '🌳', crystals: '💎', stardust: '✨',
+            bones: '💀', hides: '⛺', tusks: '🐗',
+            sulfur: '🌋', obsidian: '🪨', chaos_flame: '🔥'
+        };
+
+        for (const [kod, config] of Object.entries(BALANS_JEDNOSTEK)) {
+            // Filtrujemy tylko te jednostki, które pasują do aktualnej rasy gracza
+            if (config.faction !== frakcja) continue;
+
+            // Odczyt ilości wojska ze słownika (zabezpieczenie przed wartością undefined)
+            const posiadane = stan.jednostki && stan.jednostki[kod] ? stan.jednostki[kod] : 0;
+
+            // Mapowanie struktury kosztów obiektu na ciąg tekstowy z ikonami
+            let kosztyTekst = Object.keys(config)
+                .filter(k => ikony[k] && config[k] > 0)
+                .map(k => `${ikony[k]}${config[k]}`)
+                .join(' ');
+
+            kontenerWojska.innerHTML += `
                 <div class="budynek-wiersz">
-                    <div><strong>${config.name}</strong> (lvl ${lvl})</div>
+                    <div>
+                        <strong>${config.name}</strong> <span style="color:#27ae60; font-weight:bold;">(Masz: ${posiadane})</span>
+                        <br><small style="color: #7f8c8d;">Rola: ${config.role} | ⚔️${config.att} Atak | 🛡️${config.def} Obrona | 🐎Szybkość: ${config.speed}m/pole</small>
+                    </div>
                     <div class="budynek-akcje" style="text-align: right;">
-                        <div style="font-size: 0.8em; margin-bottom: 5px;">🪵${koszt.wood} 🪨${koszt.stone} | ${czas >= 60 ? Math.floor(czas / 60) + 'm' : czas + 's'}</div>
-                        ${przycisk}
+                        <div style="font-size: 0.8em; margin-bottom: 5px;">Koszty: ${kosztyTekst} | ⏱️${config.time}s</div>
+                        <button onclick="window.rekrutujJednostke('${kod}', 1)">Rekrutuj (1)</button>
                     </div>
                 </div>`;
         }

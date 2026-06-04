@@ -33,6 +33,12 @@
 </head>
 <body>
 
+    <noscript>
+        <div style="text-align: center; padding: 50px; color: red; font-weight: bold;">
+            Gra wymaga włączonej obsługi JavaScript, aby działać poprawnie.
+        </div>
+    </noscript>
+
     <h1>Witaj w mojej grze strategicznej!</h1>
     <hr>
 
@@ -102,6 +108,7 @@
         <div class="nawigacja-gra">
             <button class="btn-zakladka aktywna" data-cel="widok-ogolny">Wioska</button>
             <button class="btn-zakladka" data-cel="widok-budynki">Budynki</button>
+            <button class="btn-zakladka" data-cel="widok-wojsko">Koszary</button>
             <button class="btn-zakladka" data-cel="widok-mapa">Mapa Świata</button>
         </div>
 
@@ -116,6 +123,14 @@
             <div class="panel">
                 <h3>Zarządzanie Rozbudową</h3>
                 <div id="kontener-budynkow"></div>
+            </div>
+        </div>
+
+        <div id="widok-wojsko" class="zakladka-tresc ukryty">
+            <div class="panel">
+                <h3>Rekrutacja Jednostek</h3>
+                <p>Wybierz jednostki, które chcesz wcielić do swojej armii. Wojsko pozwala na ataki i obronę.</p>
+                <div id="kontener-wojska"></div>
             </div>
         </div>
 

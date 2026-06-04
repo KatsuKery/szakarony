@@ -3,8 +3,10 @@ import * as api from './api.js';
 import * as ui from './ui.js';
 import * as engine from './engine.js';
 import { BALANS_BUDYNKOW } from './config.js';
+import { BALANS_JEDNOSTEK } from './units.js'; // NOWY IMPORT JEDNOSTEK
 
-let stanGracza = { id: null, wioska: null, surowce: null, budynki: null, kolejka: [] };
+// NOWY STAN GRACZA (dodane pole jednostki)
+let stanGracza = { id: null, wioska: null, surowce: null, budynki: null, kolejka: [], jednostki: {} };
 let interwalProdukcji = null;
 
 // --- REJESTRACJA ---
@@ -18,7 +20,6 @@ document.getElementById("btn-potwierdz-frakcje").addEventListener("click", async
     const frakcja = document.getElementById("wybor-frakcji").value;
     document.getElementById("modal-frakcja").style.display = "none";
 
-    // Poprawka: używamy spClient zamiast api.spClient
     const { data: auth, error } = await spClient.auth.signUp({ email, password });
     if (error) return alert(error.message);
 
@@ -40,6 +41,9 @@ document.getElementById("btn-potwierdz-frakcje").addEventListener("click", async
         village_id: auth.user.id, town_hall: 1, lumberjack: 1, quarry: 1, coal_mine: 1, farm: 1
     });
 
+    // Zwróć uwagę, że nie musimy wstawiać tu ręcznie nic do `village_units`.
+    // Zrobi to funkcja `rekrutujJednostke` za pomocą polecenia UPSERT.
+
     alert("Konto utworzone! Możesz się zalogować.");
 });
 
@@ -48,7 +52,6 @@ document.getElementById("btn-zaloguj").addEventListener("click", async () => {
     const email = document.getElementById("email").value;
     const password = document.getElementById("haslo").value;
 
-    // Poprawka: używamy spClient zamiast api.spClient
     const { data, error } = await spClient.auth.signInWithPassword({ email, password });
     if (error) return alert("Błąd logowania: " + error.message);
 
@@ -77,7 +80,6 @@ async function odswiezDaneZ_Bazy() {
 function odpalZegarProdukcji() {
     if (interwalProdukcji) clearInterval(interwalProdukcji);
 
-    // Zmieniamy interwał na 60 000 ms (1 minuta)
     interwalProdukcji = setInterval(async () => {
         if (!stanGracza.surowce) return;
 
@@ -89,11 +91,8 @@ function odpalZegarProdukcji() {
             }
         }
 
-        // --- ZAPIS DO BAZY DANYCH ---
-        // Wysyłamy cały obiekt surowców do bazy, aby zapisać zmiany
+        // ZAPIS DO BAZY
         await api.aktualizuj('village_resources', stanGracza.surowce, 'village_id', stanGracza.id);
-
-        // Odświeżamy interfejs dopiero po zapisie
         ui.aktualizujInterfejs(stanGracza);
 
         // 2. Sprawdzanie kolejek budowy
@@ -107,7 +106,7 @@ function odpalZegarProdukcji() {
             }
             await odswiezDaneZ_Bazy();
         }
-    }, 60000); // 60000 ms = 60 sekund (1 minuta)
+    }, 60000);
 }
 
 // --- GLOBALNE FUNKCJE DLA HTML ---
@@ -119,13 +118,11 @@ window.rozbudujBudynek = async (typ) => {
         return alert("Za mało surowców!");
     }
 
-    // Odejmij surowce
     await api.aktualizuj('village_resources', {
         wood: stanGracza.surowce.wood - koszt.wood,
         stone: stanGracza.surowce.stone - koszt.stone
     }, 'village_id', stanGracza.id);
 
-    // Dodaj do kolejki
     const czasBudowy = engine.obliczCzasBudowy(typ, lvl, stanGracza.budynki.town_hall);
     await api.insert('construction_queue', {
         village_id: stanGracza.id,
@@ -137,10 +134,83 @@ window.rozbudujBudynek = async (typ) => {
     await odswiezDaneZ_Bazy();
 };
 
+// --- NOWA FUNKCJA: REKRUTACJA WOJSKA ---
+window.rekrutujJednostke = async function (kod, ilosc) {
+    if (!stanGracza.id) return;
+
+    const configJednostki = BALANS_JEDNOSTEK[kod];
+    if (!configJednostki) return;
+
+    const wszystkieSurowce = [
+        'wood', 'stone', 'coal', 'food', 'gold',
+        'iron', 'silver', 'relics',
+        'mithril', 'runestones', 'ale',
+        'corpses', 'blood', 'black_frost',
+        'elderwood', 'crystals', 'stardust',
+        'bones', 'hides', 'tusks',
+        'sulfur', 'obsidian', 'chaos_flame'
+    ];
+
+    // 1. Walidacja kosztów
+    for (const res of wszystkieSurowce) {
+        if (configJednostki[res] && configJednostki[res] > 0) {
+            const wymagane = configJednostki[res] * ilosc;
+            const posiadane = stanGracza.surowce[res] || 0;
+
+            if (posiadane < wymagane) {
+                alert(`Brakuje Ci surowców na wyszkolenie tej jednostki! Brakuje: ${res}`);
+                return;
+            }
+        }
+    }
+
+    // 2. Pobieranie surowców lokalnie
+    const surowceDoAktualizacji = {};
+    for (const res of wszystkieSurowce) {
+        if (configJednostki[res] && configJednostki[res] > 0) {
+            stanGracza.surowce[res] -= configJednostki[res] * ilosc;
+            surowceDoAktualizacji[res] = stanGracza.surowce[res];
+        }
+    }
+
+    try {
+        // 3. Zapis zmian surowców w bazie
+        const { error: errRes } = await spClient
+            .from('village_resources')
+            .update(surowceDoAktualizacji)
+            .eq('village_id', stanGracza.id);
+
+        if (errRes) throw errRes;
+
+        // 4. Upsert (aktualizacja lub tworzenie) jednostek w bazie
+        const obecnaIlosc = stanGracza.jednostki[kod] || 0;
+        const nowaIlosc = obecnaIlosc + ilosc;
+
+        const { error: errUnit } = await spClient
+            .from('village_units')
+            .upsert({
+                village_id: stanGracza.id,
+                unit_type: kod,
+                quantity: nowaIlosc
+            });
+
+        if (errUnit) throw errUnit;
+
+        // 5. Aktualizacja UI
+        stanGracza.jednostki[kod] = nowaIlosc;
+        ui.aktualizujInterfejs(stanGracza);
+
+        console.log(`Zrekrutowano: ${ilosc}x ${configJednostki.name}`);
+
+    } catch (error) {
+        console.error("Błąd podczas rekrutacji:", error);
+        alert("Błąd połączenia z bazą. Spróbuj ponownie.");
+    }
+};
+
 // --- WYLOGOWANIE ---
 document.getElementById("btn-wyloguj").addEventListener("click", () => {
     clearInterval(interwalProdukcji);
-    // Poprawka: używamy spClient zamiast api.spClient
     spClient.auth.signOut();
     location.reload();
 });
