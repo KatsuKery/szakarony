@@ -78,6 +78,13 @@ async function odswiezDaneZ_Bazy() {
     ui.renderujMape(stanGracza, wiochy, ui.pokazSzczegolyPola);
 
     if (!interwalProdukcji) odpalZegarProdukcji();
+
+    // === NOWA LINIA: Szybki zegar interfejsu (płynne odliczanie co sekundę) ===
+    if (!window.zegarSekundowyUI) {
+        window.zegarSekundowyUI = setInterval(() => {
+            if (stanGracza.id) ui.aktualizujInterfejs(stanGracza);
+        }, 1000); // Odświeżanie samego tekstu na ekranie co 1 sekundę
+    }
 }
 
 function odpalZegarProdukcji() {
