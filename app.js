@@ -3,10 +3,9 @@ import * as api from './api.js';
 import * as ui from './ui.js';
 import * as engine from './engine.js';
 import { BALANS_BUDYNKOW } from './config.js';
-import { BALANS_JEDNOSTEK } from './units.js'; // NOWY IMPORT JEDNOSTEK
+import { BALANS_JEDNOSTEK } from './units.js';
 
-// NOWY STAN GRACZA (dodane pole jednostki)
-let stanGracza = { id: null, wioska: null, surowce: null, budynki: null, kolejka: [], jednostki: {} };
+let stanGracza = { id: null, wioska: null, surowce: null, budynki: null, kolejka: [], jednostki: {}, kolejkaWojsko: [] };
 let interwalProdukcji = null;
 
 // --- REJESTRACJA ---
@@ -40,9 +39,6 @@ document.getElementById("btn-potwierdz-frakcje").addEventListener("click", async
     await api.insert('village_buildings', {
         village_id: auth.user.id, town_hall: 1, lumberjack: 1, quarry: 1, coal_mine: 1, farm: 1
     });
-
-    // Zwróć uwagę, że nie musimy wstawiać tu ręcznie nic do `village_units`.
-    // Zrobi to funkcja `rekrutujJednostke` za pomocą polecenia UPSERT.
 
     alert("Konto utworzone! Możesz się zalogować.");
 });
@@ -82,6 +78,7 @@ function odpalZegarProdukcji() {
 
     interwalProdukcji = setInterval(async () => {
         if (!stanGracza.surowce) return;
+        const teraz = new Date();
 
         // 1. Naliczanie surowców
         for (const [kod, cfg] of Object.entries(BALANS_BUDYNKOW)) {
@@ -91,21 +88,41 @@ function odpalZegarProdukcji() {
             }
         }
 
-        // ZAPIS DO BAZY
         await api.aktualizuj('village_resources', stanGracza.surowce, 'village_id', stanGracza.id);
         ui.aktualizujInterfejs(stanGracza);
 
-        // 2. Sprawdzanie kolejek budowy
-        const teraz = new Date();
-        const doUkonczenia = stanGracza.kolejka.filter(q => new Date(q.finish_time) <= teraz);
+        let zaktualizowanoCos = false;
 
+        // 2. Sprawdzanie kolejek budowy
+        const doUkonczenia = stanGracza.kolejka.filter(q => new Date(q.finish_time) <= teraz);
         if (doUkonczenia.length > 0) {
             for (const q of doUkonczenia) {
                 await api.aktualizuj('village_buildings', { [q.building_type]: stanGracza.budynki[q.building_type] + 1 }, 'village_id', stanGracza.id);
                 await api.usunZkolejki(q.id);
             }
+            zaktualizowanoCos = true;
+        }
+
+        // 3. Sprawdzanie kolejki wojska
+        const doUkonczeniaWojsko = stanGracza.kolejkaWojsko.filter(q => new Date(q.finish_time) <= teraz);
+        if (doUkonczeniaWojsko.length > 0) {
+            for (const q of doUkonczeniaWojsko) {
+                const obecnaIlosc = stanGracza.jednostki[q.unit_type] || 0;
+                // Kiedy czas minie, wpisujemy do village_units i usuwamy z kolejki
+                await spClient.from('village_units').upsert({
+                    village_id: stanGracza.id,
+                    unit_type: q.unit_type,
+                    quantity: obecnaIlosc + q.quantity
+                });
+                await api.usunZkolejkiWojska(q.id);
+            }
+            zaktualizowanoCos = true;
+        }
+
+        if (zaktualizowanoCos) {
             await odswiezDaneZ_Bazy();
         }
+
     }, 60000);
 }
 
@@ -134,7 +151,6 @@ window.rozbudujBudynek = async (typ) => {
     await odswiezDaneZ_Bazy();
 };
 
-// --- NOWA FUNKCJA: REKRUTACJA WOJSKA ---
 window.rekrutujJednostke = async function (kod, ilosc) {
     if (!stanGracza.id) return;
 
@@ -143,12 +159,9 @@ window.rekrutujJednostke = async function (kod, ilosc) {
 
     const wszystkieSurowce = [
         'wood', 'stone', 'coal', 'food', 'gold',
-        'iron', 'silver', 'relics',
-        'mithril', 'runestones', 'ale',
-        'corpses', 'blood', 'black_frost',
-        'elderwood', 'crystals', 'stardust',
-        'bones', 'hides', 'tusks',
-        'sulfur', 'obsidian', 'chaos_flame'
+        'iron', 'silver', 'relics', 'mithril', 'runestones', 'ale',
+        'corpses', 'blood', 'black_frost', 'elderwood', 'crystals', 'stardust',
+        'bones', 'hides', 'tusks', 'sulfur', 'obsidian', 'chaos_flame'
     ];
 
     // 1. Walidacja kosztów
@@ -164,7 +177,7 @@ window.rekrutujJednostke = async function (kod, ilosc) {
         }
     }
 
-    // 2. Pobieranie surowców lokalnie
+    // 2. Pobieranie surowców
     const surowceDoAktualizacji = {};
     for (const res of wszystkieSurowce) {
         if (configJednostki[res] && configJednostki[res] > 0) {
@@ -174,33 +187,20 @@ window.rekrutujJednostke = async function (kod, ilosc) {
     }
 
     try {
-        // 3. Zapis zmian surowców w bazie
-        const { error: errRes } = await spClient
-            .from('village_resources')
-            .update(surowceDoAktualizacji)
-            .eq('village_id', stanGracza.id);
+        await spClient.from('village_resources').update(surowceDoAktualizacji).eq('village_id', stanGracza.id);
 
-        if (errRes) throw errRes;
+        // 3. Dodanie do kolejki (ZAMIAST natychmiastowego tworzenia)
+        const czasSzkolenia = configJednostki.time * ilosc;
 
-        // 4. Upsert (aktualizacja lub tworzenie) jednostek w bazie
-        const obecnaIlosc = stanGracza.jednostki[kod] || 0;
-        const nowaIlosc = obecnaIlosc + ilosc;
+        await api.insert('unit_queue', {
+            village_id: stanGracza.id,
+            unit_type: kod,
+            quantity: ilosc,
+            finish_time: new Date(Date.now() + czasSzkolenia * 1000).toISOString()
+        });
 
-        const { error: errUnit } = await spClient
-            .from('village_units')
-            .upsert({
-                village_id: stanGracza.id,
-                unit_type: kod,
-                quantity: nowaIlosc
-            });
-
-        if (errUnit) throw errUnit;
-
-        // 5. Aktualizacja UI
-        stanGracza.jednostki[kod] = nowaIlosc;
-        ui.aktualizujInterfejs(stanGracza);
-
-        console.log(`Zrekrutowano: ${ilosc}x ${configJednostki.name}`);
+        // 4. Odświeżenie interfejsu
+        await odswiezDaneZ_Bazy();
 
     } catch (error) {
         console.error("Błąd podczas rekrutacji:", error);

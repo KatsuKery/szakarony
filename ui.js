@@ -38,7 +38,6 @@ export function aktualizujInterfejs(stan) {
         if (blok) blok.style.display = (f === frakcja) ? 'flex' : 'none';
     });
 
-    // Modyfikacja mapowania surowców dla unikalnych paneli górnych
     const mapowanieFrakcji = {
         ludzie: { iron: 'res-iron', silver: 'res-silver', relics: 'res-relics' },
         krasnoludy: { mithril: 'res-mithril', runestones: 'res-runestones', ale: 'res-ale' },
@@ -58,11 +57,9 @@ export function aktualizujInterfejs(stan) {
     const kontenerBudynkow = document.getElementById("kontener-budynkow");
     if (kontenerBudynkow) {
         kontenerBudynkow.innerHTML = "";
-
         const poziomRatusza = stan.budynki.town_hall || 1;
         const wszystkieUnikalne = Object.values(BUDYNKI_FRAKCYJNE).flat();
 
-        // 1. Grupowanie budynków
         const grupy = { "Główne": [], "Surowce": [], "Specjalne": [], "Wojskowe": [] };
         for (const [kod, config] of Object.entries(BALANS_BUDYNKOW)) {
             if (wszystkieUnikalne.includes(kod) && !BUDYNKI_FRAKCYJNE[frakcja]?.includes(kod)) continue;
@@ -71,7 +68,6 @@ export function aktualizujInterfejs(stan) {
             grupy[kat].push({ kod, config });
         }
 
-        // 2. Renderowanie grup
         for (const [nazwaKat, budynki] of Object.entries(grupy)) {
             if (budynki.length === 0) continue;
             kontenerBudynkow.innerHTML += `<h3 style="margin: 20px 0 5px 0; border-bottom: 2px solid #ccc;">${nazwaKat}</h3>`;
@@ -103,25 +99,29 @@ export function aktualizujInterfejs(stan) {
     if (kontenerWojska) {
         kontenerWojska.innerHTML = "";
 
-        // Słownik emoji dla poprawnego renderowania kosztów każdego zasobu
         const ikony = {
             wood: '🪵', stone: '🪨', coal: '🔥', food: '🍞', gold: '💰', pop: '👥',
-            iron: '⛏️', silver: '🥈', relics: '🏺',
-            mithril: '🛡️', runestones: '🪨', ale: '🍺',
-            corpses: '🦴', blood: '🩸', black_frost: '❄️',
-            elderwood: '🌳', crystals: '💎', stardust: '✨',
-            bones: '💀', hides: '⛺', tusks: '🐗',
-            sulfur: '🌋', obsidian: '🪨', chaos_flame: '🔥'
+            iron: '⛏️', silver: '🥈', relics: '🏺', mithril: '🛡️', runestones: '🪨', ale: '🍺',
+            corpses: '🦴', blood: '🩸', black_frost: '❄️', elderwood: '🌳', crystals: '💎', stardust: '✨',
+            bones: '💀', hides: '⛺', tusks: '🐗', sulfur: '🌋', obsidian: '🪨', chaos_flame: '🔥'
         };
 
         for (const [kod, config] of Object.entries(BALANS_JEDNOSTEK)) {
-            // Filtrujemy tylko te jednostki, które pasują do aktualnej rasy gracza
             if (config.faction !== frakcja) continue;
 
-            // Odczyt ilości wojska ze słownika (zabezpieczenie przed wartością undefined)
             const posiadane = stan.jednostki && stan.jednostki[kod] ? stan.jednostki[kod] : 0;
 
-            // Mapowanie struktury kosztów obiektu na ciąg tekstowy z ikonami
+            // Logika wyświetlania odliczania kolejki
+            const zleceniaWojska = stan.kolejkaWojsko ? stan.kolejkaWojsko.filter(q => q.unit_type === kod) : [];
+            let tekstKolejki = '';
+
+            if (zleceniaWojska.length > 0) {
+                tekstKolejki = zleceniaWojska.map(q => {
+                    const sekundy = Math.max(0, Math.floor((new Date(q.finish_time) - new Date()) / 1000));
+                    return `<br><span style="color: #e67e22; font-size: 0.9em; font-weight: bold;">⏳ W szkoleniu: ${q.quantity} (zostało ${sekundy >= 60 ? Math.floor(sekundy / 60) + 'm' : sekundy + 's'})</span>`;
+                }).join('');
+            }
+
             let kosztyTekst = Object.keys(config)
                 .filter(k => ikony[k] && config[k] > 0)
                 .map(k => `${ikony[k]}${config[k]}`)
@@ -131,6 +131,7 @@ export function aktualizujInterfejs(stan) {
                 <div class="budynek-wiersz">
                     <div>
                         <strong>${config.name}</strong> <span style="color:#27ae60; font-weight:bold;">(Masz: ${posiadane})</span>
+                        ${tekstKolejki}
                         <br><small style="color: #7f8c8d;">Rola: ${config.role} | ⚔️${config.att} Atak | 🛡️${config.def} Obrona | 🐎Szybkość: ${config.speed}m/pole</small>
                     </div>
                     <div class="budynek-akcje" style="text-align: right;">
