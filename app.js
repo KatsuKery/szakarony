@@ -5,6 +5,16 @@ const spClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 console.log("Supabase zainicjalizowany pomyślnie!");
 
+// Mapa budynków unikalnych do filtrowania (dodane do logiki)
+const BUDYNKI_FRAKCYJNE = {
+    ludzie: ['iron_mine', 'silver_shaft', 'cathedral'],
+    krasnoludy: ['deep_shaft', 'rune_forge', 'brewery'],
+    nieumarli: ['graveyard', 'blood_fountain', 'ice_spire'],
+    elfy: ['sacred_grove', 'crystal_cave', 'observatory'],
+    orkowie: ['bone_pit', 'tannery', 'beast_cages'],
+    demony: ['sulfur_fissure', 'volcanic_crater', 'chaos_altar']
+};
+
 // Pobranie elementów HTML
 const emailInput = document.getElementById("email");
 const hasloInput = document.getElementById("haslo");
@@ -238,7 +248,15 @@ function aktualizujInterfejs() {
     kontener.innerHTML = "";
     const poziomRatusza = stanGracza.budynki.town_hall || 1;
 
+    // --- FILTROWANIE BUDYNKÓW ---
+    const wszystkieUnikalneBudynki = Object.values(BUDYNKI_FRAKCYJNE).flat();
+
     for (const [kodBudynku, config] of Object.entries(BALANS_BUDYNKOW)) {
+        // Logika filtra: jeśli budynek jest unikalny i nie należy do frakcji - pomiń
+        if (wszystkieUnikalneBudynki.includes(kodBudynku) && !BUDYNKI_FRAKCYJNE[frakcja]?.includes(kodBudynku)) {
+            continue;
+        }
+
         const lvl = stanGracza.budynki[kodBudynku] || 0;
         const koszt = obliczKoszt(kodBudynku, lvl);
 
