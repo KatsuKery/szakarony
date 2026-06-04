@@ -1,4 +1,4 @@
-import { spClient } from './config.js';
+﻿import { spClient } from './config.js';
 import { BALANS_JEDNOSTEK } from './units.js';
 
 // 1. FUNKCJA WYSYŁAJĄCA ATAK
@@ -40,7 +40,7 @@ export async function przygotujIWyslijAtak(stanGracza, targetVillageId, wybraneJ
         }
 
         if (updates.length > 0) {
-            const { error: upsertError } = await spClient.from('village_units').upsert(updates);
+            const { error: upsertError } = await spClient.from('village_units').upsert(updates, { onConflict: 'village_id, unit_type' });
             if (upsertError) throw upsertError;
         }
 
@@ -205,7 +205,7 @@ export async function sprawdzMaszerujaceWojska(villageId) {
 
                 // Zabezpieczenie: Wysyłamy upsert tylko jeśli wojsko faktycznie przeżyło
                 if (updates.length > 0) {
-                    const { error: upsertErr } = await spClient.from('village_units').upsert(updates);
+                    const { error: upsertErr } = await spClient.from('village_units').upsert(updates, { onConflict: 'village_id, unit_type' });
                     if (upsertErr) console.error("Błąd przywracania wojsk:", upsertErr);
                 }
 

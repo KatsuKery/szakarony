@@ -1,4 +1,4 @@
-import { spClient } from './config.js';
+﻿import { spClient } from './config.js';
 import * as api from './api.js';
 import * as ui from './ui.js';
 import * as engine from './engine.js';
@@ -138,7 +138,7 @@ async function odswiezDaneZ_Bazy() {
                     const obecnaIlosc = stanGracza.jednostki[q.unit_type] || 0;
                     await spClient.from('village_units').upsert({
                         village_id: vId, unit_type: q.unit_type, quantity: obecnaIlosc + q.quantity
-                    });
+                    }, { onConflict: 'village_id, unit_type' });
                     await api.usunZkolejkiWojska(q.id);
                 }
                 zaktualizowanoCos = true;
