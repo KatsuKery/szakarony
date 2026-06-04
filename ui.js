@@ -1,28 +1,46 @@
-﻿import { BALANS_BUDYNKOW, BUDYNKI_FRAKCYJNE } from './config.js';
+﻿// ui.js
+import { BALANS_BUDYNKOW, BUDYNKI_FRAKCYJNE } from './config.js';
 import { obliczKoszt, obliczCzasBudowy } from './engine.js';
+
+// Pomocnicza funkcja, która zapobiega błędom, gdy elementu nie ma w HTML
+function bezpiecznyTekst(id, wartosc) {
+    const el = document.getElementById(id);
+    if (el) el.innerText = Math.floor(wartosc || 0);
+}
 
 export function aktualizujInterfejs(stan) {
     if (!stan.wioska) return;
+
     document.getElementById("nazwa-wioski").innerText = stan.wioska.name;
     document.getElementById("wioska-x").innerText = stan.wioska.pos_x;
     document.getElementById("wioska-y").innerText = stan.wioska.pos_y;
     document.getElementById("wioska-frakcja").innerText = stan.wioska.faction || "Nieznana";
 
-    document.getElementById("res-wood").innerText = Math.floor(stan.surowce.wood || 0);
-    document.getElementById("res-stone").innerText = Math.floor(stan.surowce.stone || 0);
-    document.getElementById("res-coal").innerText = Math.floor(stan.surowce.coal || 0);
-    document.getElementById("res-food").innerText = Math.floor(stan.surowce.food || 0);
-    document.getElementById("res-gold").innerText = Math.floor(stan.surowce.gold || 0);
-    document.getElementById("res-population").innerText = Math.floor(stan.surowce.population || 0);
-    document.getElementById("res-knowledge").innerText = Math.floor(stan.surowce.knowledge || 0);
-    document.getElementById("res-essence").innerText = Math.floor(stan.surowce.essence || 0);
+    // Używamy bezpiecznej funkcji, aby uniknąć błędów
+    bezpiecznyTekst("res-wood", stan.surowce.wood);
+    bezpiecznyTekst("res-stone", stan.surowce.stone);
+    bezpiecznyTekst("res-coal", stan.surowce.coal);
+    bezpiecznyTekst("res-food", stan.surowce.food);
+    bezpiecznyTekst("res-gold", stan.surowce.gold);
+    bezpiecznyTekst("res-population", stan.surowce.population);
+    bezpiecznyTekst("res-knowledge", stan.surowce.knowledge);
+    bezpiecznyTekst("res-essence", stan.surowce.essence);
 
     const frakcja = stan.wioska.faction;
     const wszystkieFrakcje = ['ludzie', 'krasnoludy', 'nieumarli', 'elfy', 'orkowie', 'demony'];
+
     wszystkieFrakcje.forEach(f => {
         const blok = document.getElementById(`frakcja-${f}`);
         if (blok) blok.style.display = (f === frakcja) ? 'flex' : 'none';
     });
+
+    // Aktualizacja unikalnych dla frakcji (też zabezpieczone)
+    if (frakcja === "ludzie") {
+        bezpiecznyTekst("res-iron", stan.surowce.iron);
+        bezpiecznyTekst("res-silver", stan.surowce.silver);
+        bezpiecznyTekst("res-relics", stan.surowce.relics);
+    }
+    // ... (pozostałe frakcje analogicznie, używaj bezpiecznyTekst)
 
     const kontener = document.getElementById("kontener-budynkow");
     if (!kontener) return;
