@@ -1,4 +1,4 @@
-import { spClient } from './config.js'; // ODBLOKOWANY IMPORT BAZY DANYCH!
+﻿import { spClient } from './config.js'; // ODBLOKOWANY IMPORT BAZY DANYCH!
 import * as api from './api.js';
 import * as ui from './ui.js';
 import * as engine from './engine.js';
@@ -44,7 +44,7 @@ document.getElementById("btn-potwierdz-frakcje").addEventListener("click", async
     });
 
     await api.insert('village_buildings', {
-        village_id: auth.user.id, town_hall: 1, lumberjack: 1, quarry: 1, coal_mine: 1, farm: 1
+        village_id: auth.user.id, town_hall: 1, lumberjack: 1, quarry: 1, coal_mine: 1, farm: 1, houses: 1
     });
 
     alert("Konto utworzone! Możesz się zalogować.");
@@ -94,7 +94,8 @@ async function odswiezDaneZ_Bazy() {
             const doUkonczenia = stanGracza.kolejka.filter(q => new Date(q.finish_time) <= teraz);
             if (doUkonczenia.length > 0) {
                 for (const q of doUkonczenia) {
-                    await api.aktualizuj('village_buildings', { [q.building_type]: stanGracza.budynki[q.building_type] + 1 }, 'village_id', stanGracza.id);
+                    const aktualnyPoziom = stanGracza.budynki[q.building_type] || 0; // Zabezpieczenie przed undefined!
+                    await api.aktualizuj('village_buildings', { [q.building_type]: aktualnyPoziom + 1 }, 'village_id', stanGracza.id);
                     await api.usunZkolejki(q.id);
                 }
                 zaktualizowanoCos = true;

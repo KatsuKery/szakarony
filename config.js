@@ -17,7 +17,7 @@ export const BUDYNKI_FRAKCYJNE = {
 export const BALANS_BUDYNKOW = {
     // --- GŁÓWNE ---
     town_hall: { name: "Ratusz", maxLvl: 20, wzrostKosztu: 1.26, woodBaza: 90, stoneBaza: 80, prodBaza: 0, resProd: null, timeBaza: 30, kategoria: "Główne" },
-    houses: { name: "Domostwa", maxLvl: 30, wzrostKosztu: 1.22, woodBaza: 40, stoneBaza: 25, prodBaza: 0, resProd: null, timeBaza: 10, kategoria: "Główne" },
+    houses: { name: "Domostwa", maxLvl: 30, wzrostKosztu: 1.22, woodBaza: 40, stoneBaza: 25, prodBaza: 1, resProd: "population", timeBaza: 10, kategoria: "Główne" },
 
     // --- SUROWCE ---
     lumberjack: { name: "Tartak", maxLvl: 30, wzrostKosztu: 1.25, woodBaza: 60, stoneBaza: 50, prodBaza: 5, resProd: "wood", timeBaza: 15, kategoria: "Surowce" },
