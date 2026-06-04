@@ -5,7 +5,7 @@ const spClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 console.log("Supabase zainicjalizowany pomyślnie!");
 
-// Mapa budynków unikalnych do filtrowania (dodane do logiki)
+// Mapa budynków unikalnych do filtrowania
 const BUDYNKI_FRAKCYJNE = {
     ludzie: ['iron_mine', 'silver_shaft', 'cathedral'],
     krasnoludy: ['deep_shaft', 'rune_forge', 'brewery'],
@@ -18,10 +18,12 @@ const BUDYNKI_FRAKCYJNE = {
 // Pobranie elementów HTML
 const emailInput = document.getElementById("email");
 const hasloInput = document.getElementById("haslo");
-const selektorFrakcji = document.getElementById("frakcja");
+const selektorFrakcji = document.getElementById("wybor-frakcji"); // Poprawione ID z Twojego HTML
 const btnZaloguj = document.getElementById("btn-zaloguj");
 const btnZarejestruj = document.getElementById("btn-zarejestruj");
+const btnPotwierdzFrakcje = document.getElementById("btn-potwierdz-frakcje"); // Przycisk wewnątrz modala
 const btnWyloguj = document.getElementById("btn-wyloguj");
+const modalFrakcja = document.getElementById("modal-frakcja");
 const sekcjaAuth = document.getElementById("sekcja-auth");
 const sekcjaGra = document.getElementById("sekcja-gra");
 
@@ -36,13 +38,19 @@ let stanGracza = {
 
 let interwalProdukcji = null;
 
-// --- REJESTRACJA NOWEGO GRACZA + TWORZENIE WIOSKI ---
-btnZarejestruj.addEventListener("click", async () => {
+// --- REJESTRACJA: OTWARCIE MODALA ---
+btnZarejestruj.addEventListener("click", () => {
+    if (!emailInput.value || !hasloInput.value) return alert("Wpisz email i hasło!");
+    modalFrakcja.style.display = "flex";
+});
+
+// --- REJESTRACJA: FINALIZACJA PO WYBORZE FRAKCJI ---
+btnPotwierdzFrakcje.addEventListener("click", async () => {
     const email = emailInput.value;
     const password = hasloInput.value;
     const wybranaFrakcja = selektorFrakcji.value;
 
-    if (!email || !password) return alert("Wpisz email i hasło!");
+    modalFrakcja.style.display = "none";
 
     const { data: authData, error: authError } = await spClient.auth.signUp({
         email: email,
@@ -92,7 +100,7 @@ btnZarejestruj.addEventListener("click", async () => {
     alert("Wioska " + wybranaFrakcja + " została pomyślnie zainicjalizowana! Możesz się zalogować.");
 });
 
-// --- LOGOWANIE + POBRANIE DANYCH Z 3 TABEL ---
+// --- LOGOWANIE + POBRANIE DANYCH ---
 btnZaloguj.addEventListener("click", async () => {
     const email = emailInput.value;
     const password = hasloInput.value;
@@ -180,7 +188,7 @@ async function obliczCzasOffline() {
     aktualizujInterfejs();
 }
 
-// --- FUNKCJA ODŚWIEŻAJĄCA ELEMENTY INTERFEJSU ---
+// --- FUNKCJA ODŚWIEŻAJĄCA INTERFEJS ---
 function aktualizujInterfejs() {
     if (!stanGracza.wioska) return;
     document.getElementById("nazwa-wioski").innerText = stanGracza.wioska.name;
@@ -248,11 +256,9 @@ function aktualizujInterfejs() {
     kontener.innerHTML = "";
     const poziomRatusza = stanGracza.budynki.town_hall || 1;
 
-    // --- FILTROWANIE BUDYNKÓW ---
     const wszystkieUnikalneBudynki = Object.values(BUDYNKI_FRAKCYJNE).flat();
 
     for (const [kodBudynku, config] of Object.entries(BALANS_BUDYNKOW)) {
-        // Logika filtra: jeśli budynek jest unikalny i nie należy do frakcji - pomiń
         if (wszystkieUnikalneBudynki.includes(kodBudynku) && !BUDYNKI_FRAKCYJNE[frakcja]?.includes(kodBudynku)) {
             continue;
         }
@@ -399,7 +405,6 @@ function odpalZegarProdukcji() {
     interwalProdukcji = setInterval(async () => {
         if (!stanGracza.surowce || !stanGracza.budynki) return;
 
-        // Naliczanie surowców w locie
         for (const [kodBudynku, config] of Object.entries(BALANS_BUDYNKOW)) {
             if (config.resProd) {
                 const lvl = stanGracza.budynki[kodBudynku] || 0;
@@ -407,7 +412,6 @@ function odpalZegarProdukcji() {
             }
         }
 
-        // Aktualizacja UI surowców
         const domWood = document.getElementById("res-wood");
         if (domWood) domWood.innerText = Math.floor(stanGracza.surowce.wood);
         const domStone = document.getElementById("res-stone");
@@ -420,7 +424,6 @@ function odpalZegarProdukcji() {
         let aktualnaData = new Date();
         let wymaganeOdswiezenieBazy = false;
 
-        // Obsługa timerów budowy
         for (const zadanie of stanGracza.kolejkaBudowy) {
             const elementTimer = document.getElementById(`timer-${zadanie.building_type}`);
             const czasKoncowy = new Date(zadanie.finish_time);

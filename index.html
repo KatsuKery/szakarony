@@ -6,39 +6,66 @@
     <title>Szakarony</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* Styl dla modala wyboru frakcji */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            width: 300px;
+        }
+    </style>
 </head>
 <body>
 
     <h1>Witaj w mojej grze strategicznej!</h1>
     <hr>
 
-    <div id="sekcja-auth">
+    <div id="sekcja-auth" style="max-width: 400px; margin: 50px auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
         <h3>Zaloguj się lub zarejestruj</h3>
-        <input type="email" id="email" placeholder="Twój E-mail"><br><br>
-        <input type="password" id="haslo" placeholder="Twoje Hasło"><br><br>
+        <input type="email" id="email" placeholder="Twój E-mail" style="width: 100%; padding: 10px; margin-bottom: 10px;"><br>
+        <input type="password" id="haslo" placeholder="Twoje Hasło" style="width: 100%; padding: 10px; margin-bottom: 20px;"><br>
 
-        <label for="frakcja">Wybierz rasę (tylko rejestracja):</label><br>
-        <select id="frakcja" style="margin-bottom: 15px; padding: 5px;">
-            <option value="ludzie">Ludzie (Zakon i Imperium)</option>
-            <option value="orkowie">Orkowie (Brutalna Horda)</option>
-            <option value="nieumarli">Nieumarli (Mrok i Nekromancja)</option>
-            <option value="elfy">Elfy (Natura i Finezja)</option>
-            <option value="krasnoludy">Krasnoludy (Podziemia i Inżynieria)</option>
-            <option value="demony">Demony (Chaos i Zniszczenie)</option>
-        </select><br>
+        <button id="btn-zaloguj" style="width: 100%; padding: 10px; margin-bottom: 10px;">Zaloguj się</button>
+        <button id="btn-zarejestruj" style="width: 100%; padding: 10px; background: #27ae60; color: white; border: none; cursor: pointer;">Zarejestruj nową wioskę</button>
+    </div>
 
-        <button id="btn-zaloguj">Zaloguj się</button>
-        <button id="btn-zarejestruj">Zarejestruj nową wioskę</button>
+    <div id="modal-frakcja" class="modal">
+        <div class="modal-content">
+            <h3>Wybierz swoją rasę</h3>
+            <select id="wybor-frakcji" style="width: 100%; padding: 10px; margin-bottom: 20px;">
+                <option value="ludzie">Ludzie (Zakon i Imperium)</option>
+                <option value="orkowie">Orkowie (Brutalna Horda)</option>
+                <option value="nieumarli">Nieumarli (Mrok i Nekromancja)</option>
+                <option value="elfy">Elfy (Natura i Finezja)</option>
+                <option value="krasnoludy">Krasnoludy (Podziemia i Inżynieria)</option>
+                <option value="demony">Demony (Chaos i Zniszczenie)</option>
+            </select>
+            <button id="btn-potwierdz-frakcje" style="width: 100%; padding: 10px; background: #2980b9; color: white; border: none; cursor: pointer;">Rozpocznij przygodę!</button>
+        </div>
     </div>
 
     <div id="sekcja-gra" style="display: none;">
-
         <h2 id="nazwa-wioski">Twoja Wioska</h2>
         <p>Pozycja na mapie: <strong>X: <span id="wioska-x">0</span>, Y: <span id="wioska-y">0</span></strong> | Frakcja: <strong id="wioska-frakcja" style="text-transform: capitalize;">Brak</strong></p>
 
         <div class="panel">
             <h3>Magazyn Surowców</h3>
-
             <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 10px;">
                 <p>🪵 Drewno: <strong id="res-wood">0</strong> <span style="color: green; font-size: 0.9em;">(<span id="prod-wood">0</span>/h)</span></p>
                 <p>🪨 Kamień: <strong id="res-stone">0</strong> <span style="color: green; font-size: 0.9em;">(<span id="prod-stone">0</span>/h)</span></p>
@@ -46,51 +73,25 @@
                 <p>🍞 Żywność: <strong id="res-food">0</strong> <span style="color: green; font-size: 0.9em;">(<span id="prod-food">0</span>/h)</span></p>
             </div>
 
-            <div style="display: flex; gap: 20px; flex-wrap: wrap; border-top: 1px solid #ddd; padding-top: 10px; margin-bottom: 10px;">
-                <p>💰 Złoto: <strong id="res-gold">0</strong></p>
-                <p>👥 Populacja: <strong id="res-population">0</strong></p>
-                <p>📜 Wiedza: <strong id="res-knowledge">0</strong></p>
-                <p>✨ Esencja: <strong id="res-essence">0</strong></p>
-            </div>
-
             <div id="kontenery-frakcyjne" style="border-top: 1px solid #ddd; padding-top: 10px; background-color: #f9f9f9;">
-
                 <div id="frakcja-ludzie" style="display: none; gap: 20px; flex-wrap: wrap;">
-                    <p>⛏️ Żelazo: <strong id="res-iron">0</strong></p>
-                    <p>🥈 Srebro: <strong id="res-silver">0</strong></p>
-                    <p>🏺 Relikwie: <strong id="res-relics">0</strong></p>
+                    <p>⛏️ Żelazo: <strong id="res-iron">0</strong></p><p>🥈 Srebro: <strong id="res-silver">0</strong></p><p>🏺 Relikwie: <strong id="res-relics">0</strong></p>
                 </div>
-
                 <div id="frakcja-krasnoludy" style="display: none; gap: 20px; flex-wrap: wrap;">
-                    <p>🛡️ Mithril: <strong id="res-mithril">0</strong></p>
-                    <p>🪨 Kamienie Runiczne: <strong id="res-runestones">0</strong></p>
-                    <p>🍺 Ale: <strong id="res-ale">0</strong></p>
+                    <p>🛡️ Mithril: <strong id="res-mithril">0</strong></p><p>🪨 Kamienie Runiczne: <strong id="res-runestones">0</strong></p><p>🍺 Ale: <strong id="res-ale">0</strong></p>
                 </div>
-
                 <div id="frakcja-nieumarli" style="display: none; gap: 20px; flex-wrap: wrap;">
-                    <p>🦴 Truchła: <strong id="res-corpses">0</strong></p>
-                    <p>🩸 Krew: <strong id="res-blood">0</strong></p>
-                    <p>❄️ Czarny Szron: <strong id="res-black_frost">0</strong></p>
+                    <p>🦴 Truchła: <strong id="res-corpses">0</strong></p><p>🩸 Krew: <strong id="res-blood">0</strong></p><p>❄️ Czarny Szron: <strong id="res-black_frost">0</strong></p>
                 </div>
-
                 <div id="frakcja-elfy" style="display: none; gap: 20px; flex-wrap: wrap;">
-                    <p>🌳 Pradawne Drewno: <strong id="res-elderwood">0</strong></p>
-                    <p>💎 Kryształy: <strong id="res-crystals">0</strong></p>
-                    <p>✨ Gwiezdny Pył: <strong id="res-stardust">0</strong></p>
+                    <p>🌳 Pradawne Drewno: <strong id="res-elderwood">0</strong></p><p>💎 Kryształy: <strong id="res-crystals">0</strong></p><p>✨ Gwiezdny Pył: <strong id="res-stardust">0</strong></p>
                 </div>
-
                 <div id="frakcja-orkowie" style="display: none; gap: 20px; flex-wrap: wrap;">
-                    <p>💀 Kości: <strong id="res-bones">0</strong></p>
-                    <p>⛺ Skóry: <strong id="res-hides">0</strong></p>
-                    <p>🐗 Kły Bestii: <strong id="res-tusks">0</strong></p>
+                    <p>💀 Kości: <strong id="res-bones">0</strong></p><p>⛺ Skóry: <strong id="res-hides">0</strong></p><p>🐗 Kły Bestii: <strong id="res-tusks">0</strong></p>
                 </div>
-
                 <div id="frakcja-demony" style="display: none; gap: 20px; flex-wrap: wrap;">
-                    <p>🌋 Siarka: <strong id="res-sulfur">0</strong></p>
-                    <p>🪨 Obsydian: <strong id="res-obsidian">0</strong></p>
-                    <p>🔥 Płomienie Chaosu: <strong id="res-chaos_flame">0</strong></p>
+                    <p>🌋 Siarka: <strong id="res-sulfur">0</strong></p><p>🪨 Obsydian: <strong id="res-obsidian">0</strong></p><p>🔥 Płomienie Chaosu: <strong id="res-chaos_flame">0</strong></p>
                 </div>
-
             </div>
         </div>
 
@@ -103,13 +104,12 @@
         <div id="widok-ogolny" class="zakladka-tresc">
             <div class="panel">
                 <h3>Przegląd Osady</h3>
-                <p>Witaj w centrum dowodzenia swojej osady. Rozbudowuj budynki produkcyjne, aby gromadzić surowce, oraz rekrutuj wojsko, by bronić swoich włości i podbijać sąsiadów.</p>
-                <p>Status konta: <strong>Darmowe</strong></p>
+                <p>Witaj w centrum dowodzenia. Rozbudowuj budynki i podbijaj sąsiadów.</p>
             </div>
         </div>
 
         <div id="widok-budynki" class="zakladka-tresc ukryty">
-            <div class="panel" style="max-width: 500px;">
+            <div class="panel">
                 <h3>Zarządzanie Rozbudową</h3>
                 <div id="kontener-budynkow"></div>
             </div>
@@ -117,12 +117,9 @@
 
         <div id="widok-mapa" class="zakladka-tresc ukryty">
             <div class="panel">
-                <h3>Okolica Twojej Osady</h3>
+                <h3>Mapa Świata</h3>
                 <div id="map-grid"></div>
-                <div id="map-cell-detail">
-                    <h4>Podgląd pola:</h4>
-                    <p id="detail-info">Kliknij na dowolny kafelek mapy, aby zobaczyć szczegóły terenu lub sąsiada.</p>
-                </div>
+                <div id="detail-info"></div>
             </div>
         </div>
 
