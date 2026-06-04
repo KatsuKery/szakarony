@@ -30,7 +30,6 @@ export async function przygotujIWyslijAtak(stanGracza, targetVillageId, wybraneJ
 
         for (const [kod, ilosc] of Object.entries(wojskoDoWyslania)) {
             noweJednostki[kod] -= ilosc;
-            // Przygotowujemy dane do batcha, zamiast wysyłać pojedynczo
             updates.push({
                 village_id: stanGracza.id,
                 unit_type: kod,
@@ -38,11 +37,14 @@ export async function przygotujIWyslijAtak(stanGracza, targetVillageId, wybraneJ
             });
         }
 
-        // Batch upsert - rozwiązuje problem 409 i poprawia wydajność
+        // Wykonanie Upsert
         const { error: upsertError } = await spClient.from('village_units').upsert(updates);
-        if (upsertError) throw upsertError;
+        if (upsertError) {
+            console.error("Błąd podczas aktualizacji jednostek (upsert):", upsertError);
+            throw upsertError;
+        }
 
-        const czasMarszuSekundy = 30; // 30 sekund na testy
+        const czasMarszuSekundy = 30;
         const czasDotarcia = new Date(Date.now() + czasMarszuSekundy * 1000).toISOString();
 
         const { error: moveError } = await spClient.from('troop_movements').insert([{
@@ -53,7 +55,11 @@ export async function przygotujIWyslijAtak(stanGracza, targetVillageId, wybraneJ
             finish_time: czasDotarcia
         }]);
 
-        if (moveError) throw moveError;
+        if (moveError) {
+            console.error("Błąd podczas tworzenia ruchu wojsk:", moveError);
+            throw moveError;
+        }
+
         alert(`Wojsko wyruszyło na wyprawę! Dotrą na miejsce za ${czasMarszuSekundy} sekund.`);
         return true;
 
@@ -121,12 +127,11 @@ async function rozstrzygnijBitwe(ruch, stanGraczaId) {
 
         const lup = { wood, stone, gold };
 
-        // Zabezpieczone usuwanie NPC
         if (cel.is_npc) {
             try {
                 await spClient.from('villages').delete().eq('id', cel.id);
             } catch (err) {
-                console.warn("Błąd 403 - brak uprawnień do usunięcia wioski NPC. Wymagana polityka RLS.");
+                console.warn("Błąd usuwania wioski NPC (może być brak uprawnień RLS):", err);
             }
         }
 
@@ -167,24 +172,31 @@ export async function sprawdzMaszerujaceWojska(stanGraczaId) {
             zaktualizowanoCos = true;
         }
         else if (ruch.mission_type === 'return') {
-            const powracajaceWojsko = ruch.units;
+            const powracajaceWojsko = { ...ruch.units };
             const lup = powracajaceWojsko._lup || {};
             delete powracajaceWojsko._lup;
 
-            const { data: jednostkiBazy } = await spClient.from('village_units').select('unit_type, quantity').eq('village_id', stanGraczaId);
+            const { data: jednostkiBazy } = await spClient.from('village_units')
+                .select('unit_type, quantity')
+                .eq('village_id', stanGraczaId);
+
             const mapaJednostek = {};
             if (jednostkiBazy) jednostkiBazy.forEach(j => mapaJednostek[j.unit_type] = j.quantity);
 
-            // Batch update dla powracających wojsk
             const updates = [];
             for (const [kod, ilosc] of Object.entries(powracajaceWojsko)) {
                 const nowaIlosc = (mapaJednostek[kod] || 0) + ilosc;
                 updates.push({ village_id: stanGraczaId, unit_type: kod, quantity: nowaIlosc });
             }
+
             await spClient.from('village_units').upsert(updates);
 
             if (Object.keys(lup).length > 0) {
-                const { data: currRes } = await spClient.from('village_resources').select('*').eq('village_id', stanGraczaId).single();
+                const { data: currRes } = await spClient.from('village_resources')
+                    .select('*')
+                    .eq('village_id', stanGraczaId)
+                    .single();
+
                 if (currRes) {
                     for (const res in lup) {
                         currRes[res] = (currRes[res] || 0) + lup[res];
