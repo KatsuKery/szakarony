@@ -4,11 +4,15 @@ import * as ui from './ui.js';
 import * as engine from './engine.js';
 import { BALANS_BUDYNKOW } from './config.js';
 import { BALANS_JEDNOSTEK } from './units.js';
+import { sprawdzIGenerujNPC } from './npc.js'; // Zmieniony import pod nowy system NPC
+import { przygotujIWyslijAtak, sprawdzMaszerujaceWojska } from './military.js';
 
 let stanGracza = { id: null, wioska: null, surowce: null, budynki: null, kolejka: [], jednostki: {}, kolejkaWojsko: [] };
 let interwalProdukcji = null;
 
+// ==========================================
 // --- REJESTRACJA ---
+// ==========================================
 document.getElementById("btn-zarejestruj").addEventListener("click", () => {
     document.getElementById("modal-frakcja").style.display = "flex";
 });
@@ -25,8 +29,8 @@ document.getElementById("btn-potwierdz-frakcje").addEventListener("click", async
     await api.insert('villages', {
         id: auth.user.id,
         name: "Osada " + email.split('@')[0],
-        pos_x: Math.floor(Math.random() * 80) + 10,
-        pos_y: Math.floor(Math.random() * 80) + 10,
+        pos_x: Math.floor(Math.random() * 50) + 1, // Zmieniono na 1-50, aby pasowało do siatki NPC
+        pos_y: Math.floor(Math.random() * 50) + 1,
         faction: frakcja,
         last_update: new Date().toISOString(),
         is_premium: false
@@ -50,7 +54,9 @@ document.getElementById("btn-potwierdz-frakcje").addEventListener("click", async
     alert("Konto utworzone! Możesz się zalogować.");
 });
 
+// ==========================================
 // --- LOGOWANIE ---
+// ==========================================
 document.getElementById("btn-zaloguj").addEventListener("click", async () => {
     const email = document.getElementById("email").value;
     const password = document.getElementById("haslo").value;
@@ -64,9 +70,22 @@ document.getElementById("btn-zaloguj").addEventListener("click", async () => {
     document.getElementById("sekcja-auth").style.display = "none";
     document.getElementById("sekcja-gra").style.display = "block";
     alert("Witaj w swojej osadzie!");
+
+    // --- START SILNIKA RESPAWNU NPC ---
+    await sprawdzIGenerujNPC();
+
+    setInterval(async () => {
+        if (stanGracza.id) {
+            await sprawdzIGenerujNPC();
+            const wiochy = await api.fetchNearbyVillages(stanGracza.wioska.pos_x, stanGracza.wioska.pos_y);
+            ui.renderujMape(stanGracza, wiochy, ui.pokazSzczegolyPola);
+        }
+    }, 120000); // Co 2 minuty
 });
 
+// ==========================================
 // --- GŁÓWNA LOGIKA GRY ---
+// ==========================================
 async function odswiezDaneZ_Bazy() {
     if (!stanGracza.id) return;
     const dane = await api.pobierzDane(stanGracza.id);
@@ -86,22 +105,22 @@ async function odswiezDaneZ_Bazy() {
             // 1. Aktualizacja samego widoku co 1s
             ui.aktualizujInterfejs(stanGracza);
 
-            // 2. Sprawdzanie co 1s czy budowa lub rekrutacja dobiegła końca
+            // 2. Sprawdzanie co 1s czy różne akcje dobiegły końca
             const teraz = new Date();
             let zaktualizowanoCos = false;
 
-            // Sprawdzenie budynków
+            // --- Sprawdzenie budynków ---
             const doUkonczenia = stanGracza.kolejka.filter(q => new Date(q.finish_time) <= teraz);
             if (doUkonczenia.length > 0) {
                 for (const q of doUkonczenia) {
-                    const aktualnyPoziom = stanGracza.budynki[q.building_type] || 0; // Zabezpieczenie przed undefined!
+                    const aktualnyPoziom = stanGracza.budynki[q.building_type] || 0;
                     await api.aktualizuj('village_buildings', { [q.building_type]: aktualnyPoziom + 1 }, 'village_id', stanGracza.id);
                     await api.usunZkolejki(q.id);
                 }
                 zaktualizowanoCos = true;
             }
 
-            // Sprawdzenie wojska
+            // --- Sprawdzenie rekrutacji wojska ---
             const doUkonczeniaWojsko = stanGracza.kolejkaWojsko.filter(q => new Date(q.finish_time) <= teraz);
             if (doUkonczeniaWojsko.length > 0) {
                 for (const q of doUkonczeniaWojsko) {
@@ -116,7 +135,13 @@ async function odswiezDaneZ_Bazy() {
                 zaktualizowanoCos = true;
             }
 
-            // Jeśli coś ukończono, pobierz nowe dane, co odświeży całą grę i wyczyści kolejkę ze stanu
+            // --- SPRAWDZENIE MASZERUJĄCYCH WOJSK I WYNIKÓW BITEW ---
+            const ruchyZaktualizowano = await sprawdzMaszerujaceWojska(stanGracza.id);
+            if (ruchyZaktualizowano) {
+                zaktualizowanoCos = true;
+            }
+
+            // --- Odświeżenie, jeśli cokolwiek się zmieniło ---
             if (zaktualizowanoCos) {
                 await odswiezDaneZ_Bazy();
             }
@@ -144,7 +169,9 @@ function odpalZegarProdukcji() {
     }, 60000);
 }
 
+// ==========================================
 // --- GLOBALNE FUNKCJE DLA HTML ---
+// ==========================================
 window.rozbudujBudynek = async (typ) => {
     const lvl = stanGracza.budynki[typ] || 0;
     const koszt = engine.obliczKoszt(typ, lvl);
@@ -175,6 +202,27 @@ window.rozbudujBudynek = async (typ) => {
     await odswiezDaneZ_Bazy();
 };
 
+window.wyslijAtak = async (targetVillageId) => {
+    if (!stanGracza.id) return;
+
+    // Pobieramy wpisane wartości ze wszystkich okienek formularza wojska
+    const wybraneJednostki = {};
+    document.querySelectorAll('input[id^="wyslij-"]').forEach(input => {
+        const kodJednostki = input.id.replace('wyslij-', '');
+        wybraneJednostki[kodJednostki] = input.value;
+    });
+
+    // Przekazujemy brudną robotę do naszego nowego modułu military.js
+    const sukces = await przygotujIWyslijAtak(stanGracza, targetVillageId, wybraneJednostki);
+
+    // Jeśli atak wyszedł pomyślnie, odświeżamy UI żeby zaktualizować licznik posiadanych wojsk
+    if (sukces) {
+        await odswiezDaneZ_Bazy();
+        // Wizualna informacja dla gracza
+        document.getElementById('detail-info').innerHTML = '<p style="color: #27ae60; font-weight: bold; font-size: 1.2em; text-align: center; padding: 20px;">Armia jest w drodze! <br>Spodziewaj się wieści wkrótce.</p>';
+    }
+};
+
 window.rekrutujJednostke = async function (kod, ilosc) {
     if (!stanGracza.id) return;
     if (isNaN(ilosc) || ilosc <= 0) return alert("Wpisz poprawną ilość jednostek!");
@@ -189,7 +237,6 @@ window.rekrutujJednostke = async function (kod, ilosc) {
     const configJednostki = BALANS_JEDNOSTEK[kod];
     if (!configJednostki) return;
 
-    // POPRAWKA: Dodane 'pop' do listy wszystkich zasobów dla walidacji w rekrutacji
     const wszystkieSurowce = [
         'wood', 'stone', 'coal', 'food', 'gold', 'pop',
         'iron', 'silver', 'relics', 'mithril', 'runestones', 'ale',
@@ -197,7 +244,6 @@ window.rekrutujJednostke = async function (kod, ilosc) {
         'bones', 'hides', 'tusks', 'sulfur', 'obsidian', 'chaos_flame'
     ];
 
-    // 1. Walidacja kosztów surowcowych
     for (const res of wszystkieSurowce) {
         if (configJednostki[res] && configJednostki[res] > 0) {
             const kluczBazy = (res === 'pop') ? 'population' : res;
@@ -211,7 +257,6 @@ window.rekrutujJednostke = async function (kod, ilosc) {
         }
     }
 
-    // 2. Pobieranie surowców z magazynu lokalnego
     const surowceDoAktualizacji = {};
     for (const res of wszystkieSurowce) {
         if (configJednostki[res] && configJednostki[res] > 0) {
@@ -268,14 +313,15 @@ window.przelaczPremium = async function () {
     }
 };
 
-// --- WYLOGOWANIE ---
+// ==========================================
+// --- WYLOGOWANIE I ZAKŁADKI ---
+// ==========================================
 document.getElementById("btn-wyloguj").addEventListener("click", () => {
     clearInterval(interwalProdukcji);
     spClient.auth.signOut();
     location.reload();
 });
 
-// --- OBSŁUGA ZAKŁADEK ---
 document.querySelectorAll('.btn-zakladka').forEach(b => {
     b.addEventListener('click', (e) => {
         document.querySelectorAll('.btn-zakladka').forEach(btn => btn.classList.remove('aktywna'));

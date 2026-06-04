@@ -81,6 +81,9 @@ export function aktualizujInterfejs(stan) {
         bones: '💀', hides: '⛺', tusks: '🐗', sulfur: '🌋', obsidian: '🪨', chaos_flame: '🔥'
     };
 
+    // Eksportujemy słownik pod klucz globalny w oknie, by móc go używać w innych miejscach UI
+    window.ikonySurowcow = ikony;
+
     // --- RENDEROWANIE BUDYNKÓW ---
     const kontenerBudynkow = document.getElementById("kontener-budynkow");
     if (kontenerBudynkow) {
@@ -106,21 +109,18 @@ export function aktualizujInterfejs(stan) {
                 const czas = obliczCzasBudowy(kod, lvl, poziomRatusza);
                 const budowa = stan.kolejka.find(q => q.building_type === kod);
 
-                // Dynamiczne koszty z ikonkami
                 let kosztyTekst = Object.keys(koszt)
                     .filter(k => koszt[k] > 0)
                     .map(k => `${ikony[k] || ''}${koszt[k]}`)
                     .join(' ');
 
-                // Generowanie opisu efektu budynku
-                let efektTekst = `<br><small style="color: #7f8c8d;">Rozwija infrastrukturę osady.</small>`; // Domyślny tekst
+                let efektTekst = `<br><small style="color: #7f8c8d;">Rozwija infrastrukturę osady.</small>`;
                 if (config.resProd) {
                     const obecnaProd = lvl * config.prodBaza * 60;
                     const nowaProd = (lvl + 1) * config.prodBaza * 60;
                     efektTekst = `<br><small style="color: #27ae60; font-weight: bold;">Produkcja: ${obecnaProd} ${ikony[config.resProd] || ''}/h ➔ ${nowaProd} ${ikony[config.resProd] || ''}/h</small>`;
                 }
 
-                // Przyciski akcji
                 let przycisk = budowa
                     ? `<button disabled style="width: 100%; padding: 7px; background: #bdc3c7; color: white; border: none; border-radius: 3px; cursor: not-allowed; font-weight: bold;">
                         Budowa: ${Math.max(0, Math.floor((new Date(budowa.finish_time) - new Date()) / 1000))}s
@@ -147,36 +147,32 @@ export function aktualizujInterfejs(stan) {
     // --- RENDEROWANIE KOSZAR ---
     const kontenerWojska = document.getElementById("kontener-wojska");
     if (kontenerWojska) {
-        // 1. ZAPAMIĘTYWANIE STANU ZANIM WYZERUJEMY HTML
         const zapamietaneWartosci = {};
         kontenerWojska.querySelectorAll('input[type="number"]').forEach(input => {
             zapamietaneWartosci[input.id] = input.value;
         });
-        // Zapamiętujemy też, czy gracz ma kursor w którymś polu (żeby mu nie przerywało pisania)
         const aktywnyElementId = document.activeElement ? document.activeElement.id : null;
 
         kontenerWojska.innerHTML = "";
-
         const wszystkieSurowceKeys = Object.keys(ikony);
         const isPremium = stan.wioska.is_premium || false;
         const maxSlots = isPremium ? 3 : 1;
 
         let aktualneTaski = stan.kolejkaWojsko ? stan.kolejkaWojsko.length : 0;
         kontenerWojska.innerHTML += `
-            <div style="background: rgba(241, 242, 246, 0.95); padding: 10px; border-radius: 5px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid ${isPremium ? '#f1c40f' : '#7f8c8d'}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <div>
-                    Status konta: <strong style="color: ${isPremium ? '#f39c12' : '#2c3e50'};">${isPremium ? '👑 PREMIUM' : '👤 ZWYKŁE'}</strong>
-                    <br><small style="color: #7f8c8d;">Kolejka rekrutacji: <strong>${aktualneTaski} / ${maxSlots}</strong> slotów</small>
-                </div>
-                <button onclick="window.przelaczPremium()" style="background: ${isPremium ? '#e74c3c' : '#f1c40f'}; color: ${isPremium ? 'white' : 'black'}; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 0.85em; font-weight: bold;">
-                    ${isPremium ? 'Wyłącz Premium (Test)' : 'Włącz Premium (Test)'}
-                </button>
-            </div>
-        `;
+            <div style="background: rgba(241, 242, 246, 0.95); padding: 10px; border-radius: 5px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid ${isPremium ? '#f1c40f' : '#7f8c8d'}; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <div>
+                    Status konta: <strong style="color: ${isPremium ? '#f39c12' : '#2c3e50'};">${isPremium ? '👑 PREMIUM' : '👤 ZWYKŁE'}</strong>
+                    <br><small style="color: #7f8c8d;">Kolejka rekrutacji: <strong>${aktualneTaski} / ${maxSlots}</strong> slotów</small>
+                </div>
+                <button onclick="window.przelaczPremium()" style="background: ${isPremium ? '#e74c3c' : '#f1c40f'}; color: ${isPremium ? 'white' : 'black'}; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 0.85em; font-weight: bold;">
+                    ${isPremium ? 'Wyłącz Premium (Test)' : 'Włącz Premium (Test)'}
+                </button>
+            </div>
+        `;
 
         for (const [kod, config] of Object.entries(BALANS_JEDNOSTEK)) {
             if (config.faction !== frakcja) continue;
-
             const posiadane = stan.jednostki && stan.jednostki[kod] ? stan.jednostki[kod] : 0;
 
             let maxMozliwe = Infinity;
@@ -187,7 +183,6 @@ export function aktualizujInterfejs(stan) {
                     maKoszty = true;
                     const kluczBazy = (res === 'pop') ? 'population' : res;
                     const posiadaneRes = stan.surowce[kluczBazy] || 0;
-
                     const ileZtego = Math.floor(posiadaneRes / config[res]);
                     if (ileZtego < maxMozliwe) maxMozliwe = ileZtego;
                 }
@@ -209,35 +204,32 @@ export function aktualizujInterfejs(stan) {
                 .map(k => `${ikony[k]}${config[k]}`)
                 .join(' ');
 
-            // 2. ODTWARZANIE WPISANEJ WARTOŚCI
             const inputId = `ile-${kod}`;
             const odzyskanaWartosc = zapamietaneWartosci[inputId] !== undefined ? zapamietaneWartosci[inputId] : 1;
 
             kontenerWojska.innerHTML += `
-                <div class="budynek-wiersz" style="padding: 15px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.95); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <div style="flex: 1;">
-                        <strong style="font-size: 1.1em; color: #2c3e50;">${config.name}</strong> <span style="color:#27ae60; font-weight:bold;">(Masz: ${posiadane})</span>
-                        ${tekstKolejki}
-                        <br><small style="color: #7f8c8d;">Rola: ${config.role} | ⚔️${config.att} Atak | 🛡️${config.def} Obrona | 🐎Szybkość: ${config.speed}m/pole</small>
-                        <div style="font-size: 0.85em; margin-top: 5px; color: #34495e;">Koszt jedn.: ${kosztyTekst} | ⏱️${config.time}s</div>
-                    </div>
-                    <div class="budynek-akcje" style="text-align: right; min-width: 180px;">
-                        <div style="margin-bottom: 8px;">
-                                                        <input type="number" id="${inputId}" value="${odzyskanaWartosc}" min="1" max="${maxMozliwe}" style="width: 60px; padding: 5px; text-align: center; border-radius: 3px; border: 1px solid #ccc;">
-                            <span onclick="document.getElementById('${inputId}').value = ${maxMozliwe}" style="cursor: pointer; text-decoration: underline; font-size: 0.85em; color: #2980b9; margin-left: 5px; font-weight: bold;">
-                                (Max: ${maxMozliwe})
-                            </span>
-                        </div>
-                        <button onclick="window.rekrutujJednostke('${kod}', parseInt(document.getElementById('${inputId}').value) || 1)" 
-                                style="width: 100%; padding: 7px; background: #27ae60; color: white; border: none; border-radius: 3px; cursor: pointer; font-weight: bold;"
-                                ${maxMozliwe === 0 ? 'disabled style="background:#bdc3c7; cursor:not-allowed;"' : ''}>
-                            Rekrutuj
-                        </button>
-                    </div>
-                </div>`;
+                <div class="budynek-wiersz" style="padding: 15px; border: 1px solid #ddd; margin-bottom: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.95); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <div style="flex: 1;">
+                        <strong style="font-size: 1.1em; color: #2c3e50;">${config.name}</strong> <span style="color:#27ae60; font-weight:bold;">(Masz: ${posiadane})</span>
+                        ${tekstKolejki}
+                        <br><small style="color: #7f8c8d;">Rola: ${config.role} | ⚔️${config.att} Atak | 🛡️${config.def} Obrona | 🐎Szybkość: ${config.speed}m/pole</small>
+                        <div style="font-size: 0.85em; margin-top: 5px; color: #34495e;">Koszt jedn.: ${kosztyTekst} | ⏱️${config.time}s</div>
+                    </div>
+                    <div class="budynek-akcje" style="text-align: right; min-width: 180px;">
+                        <div style="margin-bottom: 8px;">
+                            <input type="number" id="${inputId}" value="${odzyskanaWartosc}" min="1" max="${maxMozliwe}" style="width: 60px; padding: 5px; text-align: center; border-radius: 3px; border: 1px solid #ccc;">
+                            <span onclick="document.getElementById('${inputId}').value = ${maxMozliwe}" style="cursor: pointer; text-decoration: underline; font-size: 0.85em; color: #2980b9; margin-left: 5px; font-weight: bold;">
+                                (Max: ${maxMozliwe})
+                            </span>
+                        </div>
+                        <button onclick="window.rekrutujJednostke('${kod}', parseInt(document.getElementById('${inputId}').value) || 1)" 
+                                style="width: 100%; padding: 7px; background: #27ae60; color: white; border: none; border-radius: 3px; cursor: pointer; font-weight: bold;"
+                                ${maxMozliwe === 0 ? 'disabled style="background:#bdc3c7; cursor:not-allowed;"' : ''}>
+                            Rekrutuj
+                        </button>
+                    </div>
+                </div>`;
         }
-
-        // 3. PRZYWRACANIE KURZORA (FOCUS) JEŚLI GRACZ WŁAŚNIE WPISYWAŁ LICZBĘ
         if (aktywnyElementId) {
             const inputPoOdswiezeniu = document.getElementById(aktywnyElementId);
             if (inputPoOdswiezeniu) inputPoOdswiezeniu.focus();
@@ -249,7 +241,9 @@ export function renderujMape(stan, listaWioch, klikFn) {
     const mapGrid = document.getElementById('map-grid');
     if (!mapGrid) return;
     mapGrid.innerHTML = "";
-    const radius = 3;
+
+    // Zwiększamy widoczność radaru, żeby gracz widział szerszą okolicę wokół osady
+    const radius = 4;
     const mapaWioch = {};
     listaWioch.forEach(v => mapaWioch[`${v.pos_x}_${v.pos_y}`] = v);
 
@@ -257,17 +251,114 @@ export function renderujMape(stan, listaWioch, klikFn) {
         for (let x = stan.wioska.pos_x - radius; x <= stan.wioska.pos_x + radius; x++) {
             const cell = document.createElement('div');
             cell.className = 'map-cell';
+
+            // Stylizowanie wizualne elementów
             const wioska = mapaWioch[`${x}_${y}`];
-            if (x === stan.wioska.pos_x && y === stan.wioska.pos_y) { cell.classList.add('my-village'); cell.textContent = "🏠"; }
-            else if (wioska) { cell.classList.add('enemy-village'); cell.textContent = "🏰"; }
-            else { cell.classList.add('empty-field'); cell.textContent = "🌲"; }
-            cell.addEventListener('click', () => klikFn(x, y, wioska, stan.id));
+
+            if (x === stan.wioska.pos_x && y === stan.wioska.pos_y) {
+                cell.classList.add('my-village');
+                cell.textContent = "🏠";
+                cell.style.border = "2px solid #27ae60"; // Zielona ramka na swojej osadzie
+            }
+            else if (wioska) {
+                if (wioska.is_npc) {
+                    cell.classList.add('npc-camp');
+                    // Rozróżnienie ikony w zależności od Tieru trudności obozu
+                    if (wioska.npc_tier === 1) cell.textContent = "🔥";
+                    if (wioska.npc_tier === 2) cell.textContent = "🏕️";
+                    if (wioska.npc_tier === 3) cell.textContent = "💀";
+                    cell.style.border = "2px solid #e67e22"; // Pomarańczowa ramka
+                } else {
+                    cell.classList.add('enemy-village');
+                    cell.textContent = "🏰";
+                    cell.style.border = "2px solid #c0392b"; // Czerwona ramka
+                }
+            }
+            else {
+                cell.classList.add('empty-field');
+                // Losowe wariacje drzew dla klimatu (za każdym razem wyglądają trochę inaczej)
+                const szansa = Math.random();
+                if (szansa > 0.8) cell.textContent = "🌲";
+                else if (szansa > 0.6) cell.textContent = "🌳";
+                else cell.textContent = "";
+            }
+
+            // Wywołujemy zmienioną funkcję szczegółów
+            cell.addEventListener('click', () => klikFn(x, y, wioska, stan));
             mapGrid.appendChild(cell);
         }
     }
 }
 
-export function pokazSzczegolyPola(x, y, wioska, stanGraczaId) {
+export function pokazSzczegolyPola(x, y, wioska, stanGracza) {
     const detailInfo = document.getElementById('detail-info');
-    if (detailInfo) detailInfo.innerHTML = wioska ? `Wioska: ${wioska.name} (${wioska.faction})` : `Dzika głusza (${x}|${y})`;
+    if (!detailInfo) return;
+
+    if (!wioska) {
+        // Kliknięto pustą przestrzeń
+        detailInfo.innerHTML = `
+            <div style="padding: 15px; background: rgba(0,0,0,0.6); color: white; border-radius: 5px;">
+                <h3 style="margin-top:0;">Dzika głusza (${x} | ${y})</h3>
+                <p>Niezbadany i pusty teren. Być może w przyszłości znajdziesz tu coś ciekawego.</p>
+            </div>
+        `;
+        return;
+    }
+
+    if (wioska.id === stanGracza.id) {
+        // Kliknięto w swoją własną osadę
+        detailInfo.innerHTML = `
+            <div style="padding: 15px; background: rgba(39, 174, 96, 0.8); color: white; border-radius: 5px;">
+                <h3 style="margin-top:0;">Twoja Osada: ${wioska.name}</h3>
+                <p>Koordynaty: ${x} | ${y}</p>
+                <p>Nigdzie nie ma to jak w domu.</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Jeśli gra doszła tutaj, to znaczy że gracz kliknął we wroga lub obóz potworów
+    let kolorTla = wioska.is_npc ? "rgba(230, 126, 34, 0.8)" : "rgba(192, 57, 43, 0.8)";
+    let naglowek = wioska.is_npc ? `Obóz Potworów: ${wioska.name}` : `Wrogie Państwo: ${wioska.name}`;
+    let typCelu = wioska.is_npc ? `Potwory (Poziom ${wioska.npc_tier})` : `Frakcja: ${wioska.faction}`;
+
+    // GENEROWANIE PANELU WYSYŁANIA WOJSK
+    let panelWojska = `<h4 style="margin-bottom: 5px;">Przygotuj armię:</h4><div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 5px; margin-bottom: 10px;">`;
+    let jestWojsko = false;
+
+    // Pobieramy tylko te jednostki gracza, których posiada więcej niż 0
+    for (const [kod, jednostkaKonto] of Object.entries(stanGracza.jednostki || {})) {
+        if (jednostkaKonto > 0) {
+            jestWojsko = true;
+            const nazwaJednostki = BALANS_JEDNOSTEK[kod]?.name || kod;
+            panelWojska += `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span>${nazwaJednostki} <small>(Max: ${jednostkaKonto})</small>:</span>
+                    <input type="number" id="wyslij-${kod}" value="0" min="0" max="${jednostkaKonto}" style="width: 50px; text-align: center;">
+                </div>
+            `;
+        }
+    }
+
+    if (!jestWojsko) {
+        panelWojska += `<p style="color: #f1c40f;">Nie masz armii zdolnej do walki! Przejdź do Koszar i wyszkol żołnierzy.</p>`;
+    }
+    panelWojska += `</div>`;
+
+    // Okno HTML, które wstrzykujemy
+    detailInfo.innerHTML = `
+        <div style="padding: 15px; background: ${kolorTla}; color: white; border-radius: 5px;">
+            <h3 style="margin-top:0;">${naglowek}</h3>
+            <p style="margin: 5px 0;">Rodzaj zagrożenia: <strong>${typCelu}</strong></p>
+            <p style="margin: 5px 0 15px 0;">Koordynaty: ${x} | ${y}</p>
+            
+            ${panelWojska}
+            
+            ${jestWojsko ? `
+                <button onclick="window.wyslijAtak('${wioska.id}')" style="width: 100%; padding: 10px; background: #c0392b; color: white; border: 1px solid #8e44ad; font-weight: bold; font-size: 1.1em; cursor: pointer;">
+                    ⚔️ WYŚLIJ ATAK ⚔️
+                </button>
+            ` : ''}
+        </div>
+    `;
 }
