@@ -34,9 +34,7 @@ export function aktualizujInterfejs(stan) {
     const frakcja = stan.wioska.faction;
 
     // --- DYNAMICZNE TŁO FRAKCJI ---
-    const tlaFrakcji = {
-
-    };
+    const tlaFrakcji = {};
 
     if (tlaFrakcji[frakcja]) {
         document.body.style.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), ${tlaFrakcji[frakcja]}`;
@@ -233,13 +231,12 @@ export function renderujMape(stan, listaWioch, klikFn) {
     const mapGrid = document.getElementById('map-grid');
     if (!mapGrid) return;
 
-    // Zwiększamy widoczność radaru, żeby gracz widział szerszą okolicę wokół osady
+    // Ustawienia widoku
     const radius = 8;
-    const columns = radius * 2 + 1; // Dynamicznie obliczamy liczbę kolumn
-    mapGrid.style.gridTemplateColumns = `repeat(${columns}, 50px)`; // Dynamiczne ustawienie szerokości kolumn
+    const columns = radius * 2 + 1; // 17 kolumn dla radius 8
+    mapGrid.style.gridTemplateColumns = `repeat(${columns}, 50px)`; // Dynamiczna siatka
 
     mapGrid.innerHTML = "";
-
     const mapaWioch = {};
     listaWioch.forEach(v => mapaWioch[`${v.pos_x}_${v.pos_y}`] = v);
 
@@ -248,38 +245,33 @@ export function renderujMape(stan, listaWioch, klikFn) {
             const cell = document.createElement('div');
             cell.className = 'map-cell';
 
-            // Stylizowanie wizualne elementów
             const wioska = mapaWioch[`${x}_${y}`];
 
             if (x === stan.wioska.pos_x && y === stan.wioska.pos_y) {
                 cell.classList.add('my-village');
                 cell.textContent = "🏠";
-                cell.style.border = "2px solid #27ae60"; // Zielona ramka na swojej osadzie
+                cell.style.border = "2px solid #27ae60";
             }
             else if (wioska) {
                 if (wioska.is_npc) {
                     cell.classList.add('npc-camp');
-                    // Rozróżnienie ikony w zależności od Tieru trudności obozu
                     if (wioska.npc_tier === 1) cell.textContent = "🔥";
                     if (wioska.npc_tier === 2) cell.textContent = "🏕️";
                     if (wioska.npc_tier === 3) cell.textContent = "💀";
-                    cell.style.border = "2px solid #e67e22"; // Pomarańczowa ramka
+                    cell.style.border = "2px solid #e67e22";
                 } else {
                     cell.classList.add('enemy-village');
                     cell.textContent = "🏰";
-                    cell.style.border = "2px solid #c0392b"; // Czerwona ramka
+                    cell.style.border = "2px solid #c0392b";
                 }
             }
             else {
                 cell.classList.add('empty-field');
-                // Losowe wariacje drzew dla klimatu (za każdym razem wyglądają trochę inaczej)
                 const szansa = Math.random();
                 if (szansa > 0.8) cell.textContent = "🌲";
                 else if (szansa > 0.6) cell.textContent = "🌳";
-                else cell.textContent = "";
             }
 
-            // Wywołujemy zmienioną funkcję szczegółów
             cell.addEventListener('click', () => klikFn(x, y, wioska, stan));
             mapGrid.appendChild(cell);
         }
@@ -291,38 +283,32 @@ export function pokazSzczegolyPola(x, y, wioska, stanGracza) {
     if (!detailInfo) return;
 
     if (!wioska) {
-        // Kliknięto pustą przestrzeń
         detailInfo.innerHTML = `
             <div style="padding: 15px; background: rgba(0,0,0,0.6); color: white; border-radius: 5px;">
                 <h3 style="margin-top:0;">Dzika głusza (${x} | ${y})</h3>
-                <p>Niezbadany i pusty teren. Być może w przyszłości znajdziesz tu coś ciekawego.</p>
+                <p>Niezbadany i pusty teren.</p>
             </div>
         `;
         return;
     }
 
     if (wioska.id === stanGracza.id) {
-        // Kliknięto w swoją własną osadę
         detailInfo.innerHTML = `
             <div style="padding: 15px; background: rgba(39, 174, 96, 0.8); color: white; border-radius: 5px;">
                 <h3 style="margin-top:0;">Twoja Osada: ${wioska.name}</h3>
                 <p>Koordynaty: ${x} | ${y}</p>
-                <p>Nigdzie nie ma to jak w domu.</p>
             </div>
         `;
         return;
     }
 
-    // Jeśli gra doszła tutaj, to znaczy że gracz kliknął we wroga lub obóz potworów
     let kolorTla = wioska.is_npc ? "rgba(230, 126, 34, 0.8)" : "rgba(192, 57, 43, 0.8)";
     let naglowek = wioska.is_npc ? `Obóz Potworów: ${wioska.name}` : `Wrogie Państwo: ${wioska.name}`;
     let typCelu = wioska.is_npc ? `Potwory (Poziom ${wioska.npc_tier})` : `Frakcja: ${wioska.faction}`;
 
-    // GENEROWANIE PANELU WYSYŁANIA WOJSK
     let panelWojska = `<h4 style="margin-bottom: 5px;">Przygotuj armię:</h4><div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 5px; margin-bottom: 10px;">`;
     let jestWojsko = false;
 
-    // Pobieramy tylko te jednostki gracza, których posiada więcej niż 0
     for (const [kod, jednostkaKonto] of Object.entries(stanGracza.jednostki || {})) {
         if (jednostkaKonto > 0) {
             jestWojsko = true;
@@ -337,21 +323,17 @@ export function pokazSzczegolyPola(x, y, wioska, stanGracza) {
     }
 
     if (!jestWojsko) {
-        panelWojska += `<p style="color: #f1c40f;">Nie masz armii zdolnej do walki! Przejdź do Koszar i wyszkol żołnierzy.</p>`;
+        panelWojska += `<p style="color: #f1c40f;">Nie masz armii!</p>`;
     }
     panelWojska += `</div>`;
 
-    // Okno HTML, które wstrzykujemy
     detailInfo.innerHTML = `
         <div style="padding: 15px; background: ${kolorTla}; color: white; border-radius: 5px;">
             <h3 style="margin-top:0;">${naglowek}</h3>
-            <p style="margin: 5px 0;">Rodzaj zagrożenia: <strong>${typCelu}</strong></p>
-            <p style="margin: 5px 0 15px 0;">Koordynaty: ${x} | ${y}</p>
-            
+            <p style="margin: 5px 0;">Typ: <strong>${typCelu}</strong></p>
             ${panelWojska}
-            
             ${jestWojsko ? `
-                <button onclick="window.wyslijAtak('${wioska.id}')" style="width: 100%; padding: 10px; background: #c0392b; color: white; border: 1px solid #8e44ad; font-weight: bold; font-size: 1.1em; cursor: pointer;">
+                <button onclick="window.wyslijAtak('${wioska.id}')" style="width: 100%; padding: 10px; background: #c0392b; color: white; border: none; font-weight: bold; cursor: pointer;">
                     ⚔️ WYŚLIJ ATAK ⚔️
                 </button>
             ` : ''}

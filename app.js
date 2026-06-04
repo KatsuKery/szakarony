@@ -10,6 +10,13 @@ import { przygotujIWyslijAtak, sprawdzMaszerujaceWojska } from './military.js';
 let stanGracza = { id: null, wioska: null, surowce: null, budynki: null, kolejka: [], jednostki: {}, kolejkaWojsko: [] };
 let interwalProdukcji = null;
 
+// --- ZMIENNE DO OPTYMALIZACJI MAPY ---
+let ostatniHashMapy = "";
+
+function wygenerujHashMapy(stan, listaWioch) {
+    return `${stan.wioska.pos_x}_${stan.wioska.pos_y}_${JSON.stringify(listaWioch)}`;
+}
+
 // ==========================================
 // --- REJESTRACJA ---
 // ==========================================
@@ -76,7 +83,11 @@ document.getElementById("btn-zaloguj").addEventListener("click", async () => {
         if (stanGracza.id) {
             await sprawdzIGenerujNPC();
             const wiochy = await api.fetchNearbyVillages(stanGracza.wioska.pos_x, stanGracza.wioska.pos_y);
-            ui.renderujMape(stanGracza, wiochy, ui.pokazSzczegolyPola);
+            const nowyHash = wygenerujHashMapy(stanGracza, wiochy);
+            if (nowyHash !== ostatniHashMapy) {
+                ui.renderujMape(stanGracza, wiochy, ui.pokazSzczegolyPola);
+                ostatniHashMapy = nowyHash;
+            }
         }
     }, 120000);
 });
@@ -91,7 +102,14 @@ async function odswiezDaneZ_Bazy() {
 
     stanGracza = { id: stanGracza.id, ...dane };
     ui.aktualizujInterfejs(stanGracza);
-    ui.renderujMape(stanGracza, await api.fetchNearbyVillages(stanGracza.wioska.pos_x, stanGracza.wioska.pos_y), ui.pokazSzczegolyPola);
+
+    // Renderowanie mapy z użyciem hashowania
+    const wiochy = await api.fetchNearbyVillages(stanGracza.wioska.pos_x, stanGracza.wioska.pos_y);
+    const nowyHash = wygenerujHashMapy(stanGracza, wiochy);
+    if (nowyHash !== ostatniHashMapy) {
+        ui.renderujMape(stanGracza, wiochy, ui.pokazSzczegolyPola);
+        ostatniHashMapy = nowyHash;
+    }
 
     if (!interwalProdukcji) odpalZegarProdukcji();
 
@@ -104,7 +122,6 @@ async function odswiezDaneZ_Bazy() {
             const teraz = new Date();
             let zaktualizowanoCos = false;
 
-            // --- Sprawdzenie budynków ---
             const doUkonczenia = stanGracza.kolejka.filter(q => new Date(q.finish_time) <= teraz);
             if (doUkonczenia.length > 0) {
                 for (const q of doUkonczenia) {
@@ -115,7 +132,6 @@ async function odswiezDaneZ_Bazy() {
                 zaktualizowanoCos = true;
             }
 
-            // --- Sprawdzenie rekrutacji wojska ---
             const doUkonczeniaWojsko = stanGracza.kolejkaWojsko.filter(q => new Date(q.finish_time) <= teraz);
             if (doUkonczeniaWojsko.length > 0) {
                 for (const q of doUkonczeniaWojsko) {
@@ -128,7 +144,6 @@ async function odswiezDaneZ_Bazy() {
                 zaktualizowanoCos = true;
             }
 
-            // --- SPRAWDZENIE MASZERUJĄCYCH WOJSK ---
             if (await sprawdzMaszerujaceWojska(stanGracza.id)) {
                 zaktualizowanoCos = true;
             }
@@ -136,7 +151,6 @@ async function odswiezDaneZ_Bazy() {
             if (zaktualizowanoCos) {
                 await odswiezDaneZ_Bazy();
             }
-
         }, 1000);
     }
 }
