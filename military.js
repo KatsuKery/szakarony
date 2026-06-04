@@ -4,7 +4,6 @@ import { BALANS_JEDNOSTEK } from './units.js';
 // 1. FUNKCJA WYSYŁAJĄCA ATAK
 export async function przygotujIWyslijAtak(stanGracza, targetVillageId, wybraneJednostki) {
     const villageId = stanGracza.wioska.id;
-
     const wojskoDoWyslania = {};
     let iloscWojskaLacznie = 0;
 
@@ -75,11 +74,10 @@ async function rozstrzygnijBitwe(ruch, villageId) {
         await spClient.from('troop_movements').update({
             mission_type: 'return',
             finish_time: new Date(Date.now() + 30 * 1000).toISOString()
-        }).eq('id', ruch.id);
+        }).eq('id', Number(ruch.id));
         return;
     }
 
-    // --- KALKULACJA SIŁY ---
     let silaAtaku = 0;
     for (const [kod, ilosc] of Object.entries(ruch.units)) {
         silaAtaku += (BALANS_JEDNOSTEK[kod]?.att || 10) * ilosc;
@@ -100,14 +98,10 @@ async function rozstrzygnijBitwe(ruch, villageId) {
 
     console.log(`\n⚔️ --- RAPORT Z BITWY --- ⚔️`);
     console.log(`Cel ataku: ${cel.name}`);
-    console.log(`Przeciwnik: ${opisObroncy}`);
     console.log(`Twoja siła ataku: ${silaAtaku}`);
 
     if (silaAtaku > silaObrony) {
         const procentStrat = Math.min(0.9, silaObrony / silaAtaku);
-        console.log(`Wynik: ZWYCIĘSTWO! 🎉`);
-        console.log(`Straty w armii: ${Math.round(procentStrat * 100)}%`);
-
         const noweWojsko = {};
         let calkowityUdzwig = 0;
 
@@ -137,37 +131,27 @@ async function rozstrzygnijBitwe(ruch, villageId) {
         console.log(`Złupiono: 🪵${wood}, 🪨${stone}, 💰${gold}`);
 
         if (cel.is_npc) {
-            try {
-                await spClient.from('villages').delete().eq('id', cel.id);
-            } catch (err) {
-                console.warn("Błąd usuwania wioski NPC:", err);
-            }
+            try { await spClient.from('villages').delete().eq('id', cel.id); } catch (err) { console.warn(err); }
         }
 
         noweWojsko._lup = lup;
         const czasPowrotu = new Date(Date.now() + 30 * 1000).toISOString();
 
-        // TEST WERYFIKACJI UPDATE'U BAZY:
+        // Wymuszamy Number(ruch.id)
         const { data: updateData, error: updateErr } = await spClient.from('troop_movements').update({
             mission_type: 'return',
             finish_time: czasPowrotu,
             units: noweWojsko
-        }).eq('id', ruch.id).select(); // <--- SELECT WYMUSZA POTWIERDZENIE
+        }).eq('id', Number(ruch.id)).select();
 
-        if (updateErr) {
-            console.error("❌ BŁĄD BAZY: Supabase odrzuciło powrót wojska!", updateErr);
-        } else if (!updateData || updateData.length === 0) {
-            console.error("❌ BŁĄD BAZY: Komenda poszła, ale żaden wiersz się nie zaktualizował!");
-        } else {
-            console.log(`⏳ Armia w drodze powrotnej. Spodziewany powrót dokładnie o: ${new Date(czasPowrotu).toLocaleTimeString()}`);
+        if (updateErr || !updateData || updateData.length === 0) {
+            console.error("❌ BŁĄD: Supabase nie zaktualizowało wiersza:", updateErr);
         }
 
     } else {
         console.log(`Wynik: PRZEGRANA! 💀`);
-        console.log(`Cała Twoja armia poległa.`);
-        await spClient.from('troop_movements').delete().eq('id', ruch.id);
+        await spClient.from('troop_movements').delete().eq('id', Number(ruch.id));
     }
-    console.log(`---------------------------\n`);
 }
 
 // 3. GŁÓWNA FUNKCJA SILNIKA
@@ -183,7 +167,6 @@ export async function sprawdzMaszerujaceWojska(villageId) {
     if (!ruchy || ruchy.length === 0) return false;
 
     let zaktualizowanoCos = false;
-
     for (const ruch of ruchy) {
         if (ruch.mission_type === 'attack') {
             await rozstrzygnijBitwe(ruch, villageId);
@@ -191,9 +174,6 @@ export async function sprawdzMaszerujaceWojska(villageId) {
         }
         else if (ruch.mission_type === 'return') {
             try {
-                console.log(`\n🛡️ --- PROCEDURA POWROTU WOJSKA --- 🛡️`);
-                console.log(`Otwieram bramy osady dla powracających wojsk...`);
-
                 const powracajaceWojsko = { ...ruch.units };
                 const lup = powracajaceWojsko._lup || {};
                 delete powracajaceWojsko._lup;
@@ -208,36 +188,28 @@ export async function sprawdzMaszerujaceWojska(villageId) {
                 const updates = [];
                 for (const [kod, ilosc] of Object.entries(powracajaceWojsko)) {
                     if (ilosc > 0) {
-                        const nowaIlosc = (mapaJednostek[kod] || 0) + ilosc;
-                        updates.push({ village_id: villageId, unit_type: kod, quantity: nowaIlosc });
+                        updates.push({ village_id: villageId, unit_type: kod, quantity: (mapaJednostek[kod] || 0) + ilosc });
                     }
                 }
 
                 if (updates.length > 0) {
-                    const { error: upsertErr } = await spClient.from('village_units').upsert(updates, { onConflict: 'village_id,unit_type' });
-                    if (upsertErr) throw upsertErr;
+                    await spClient.from('village_units').upsert(updates, { onConflict: 'village_id,unit_type' });
                 }
 
                 if (Object.keys(lup).length > 0) {
-                    const { data: currRes } = await spClient.from('village_resources')
-                        .select('*')
-                        .eq('village_id', villageId)
-                        .single();
-
+                    const { data: currRes } = await spClient.from('village_resources').select('*').eq('village_id', villageId).single();
                     if (currRes) {
-                        for (const res in lup) {
-                            currRes[res] = (currRes[res] || 0) + lup[res];
-                        }
+                        for (const res in lup) currRes[res] = (currRes[res] || 0) + lup[res];
                         await spClient.from('village_resources').update(currRes).eq('village_id', villageId);
                     }
                 }
 
-                await spClient.from('troop_movements').delete().eq('id', ruch.id);
-                console.log(`✅ [SUKCES] Wojska bezpiecznie wróciły! Zrabowano: Drewno:${lup.wood || 0}, Kamień:${lup.stone || 0}, Złoto:${lup.gold || 0}\n`);
+                await spClient.from('troop_movements').delete().eq('id', Number(ruch.id));
+                console.log(`✅ [SUKCES] Wojska wróciły! Zrabowano: ${lup.wood || 0} drewna.`);
                 zaktualizowanoCos = true;
 
             } catch (err) {
-                console.error("❌ KRYTYCZNY BŁĄD PODCZAS POWROTU WOJSK:", err);
+                console.error("❌ BŁĄD PODCZAS POWROTU:", err);
             }
         }
     }
