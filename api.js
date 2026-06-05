@@ -1,13 +1,13 @@
 import { spClient } from './config.js';
 
 export async function pobierzDane(userId) {
-    // 1. ZnajdŸ wioskê, która nale¿y do tego u¿ytkownika (owner_id)
+    // 1. ZnajdÅº wioskÄ™, ktÃ³ra naleÅ¼y do tego uÅ¼ytkownika (owner_id)
     const { data: vData } = await spClient.from('villages').select('*').eq('owner_id', userId).single();
 
-    // Jeœli gracz jeszcze nie ma wioski, zwróæ null
+    // JeÅ›li gracz jeszcze nie ma wioski, zwrÃ³Ä‡ null
     if (!vData) return { wioska: null };
 
-    // 2. U¿yj unikalnego ID tej wioski do pobrania reszty danych
+    // 2. UÅ¼yj unikalnego ID tej wioski do pobrania reszty danych
     const villageId = vData.id;
 
     const { data: rData } = await spClient.from('village_resources').select('*').eq('village_id', villageId).single();
@@ -40,7 +40,7 @@ export async function aktualizuj(tabela, dane, warunek, id) {
 }
 
 export async function insert(tabela, dane) {
-    // Uwaga: Tutaj przekazujemy obiekt bezpoœrednio lub jako tablicê (Supabase akceptuje oba)
+    // Uwaga: Tutaj przekazujemy obiekt bezpoÅ›rednio lub jako tablicÄ™ (Supabase akceptuje oba)
     return await spClient.from(tabela).insert([dane]);
 }
 
@@ -48,20 +48,26 @@ export async function usunZkolejki(id) {
     return await spClient.from('construction_queue').delete().eq('id', id);
 }
 
-// Funkcja usuwaj¹ca jednostkê z kolejki po wyszkoleniu
+// Funkcja usuwajÄ…ca jednostkÄ™ z kolejki po wyszkoleniu
 export async function usunZkolejkiWojska(id) {
     return await spClient.from('unit_queue').delete().eq('id', id);
 }
 
-export async function fetchNearbyVillages(x, y, radius = 50) {
+// POBIERANIE WIOSEK TYLKO Z WIDOCZNEGO ZAKRESU (Bounding Box)
+export async function fetchNearbyVillages(centerX, centerY, zasieg = 7) {
+    const minX = centerX - zasieg;
+    const maxX = centerX + zasieg;
+    const minY = centerY - zasieg;
+    const maxY = centerY + zasieg;
+
     const { data, error } = await spClient.from('villages')
-        // Doda³em 'is_npc' i 'owner_id', aby UI mia³o pe³n¹ wiedzê
-        .select('id, name, pos_x, pos_y, faction, is_npc, owner_id')
-        .gte('pos_x', x - radius).lte('pos_x', x + radius)
-        .gte('pos_y', y - radius).lte('pos_y', y + radius);
+        // DODANO 'npc_tier' na koÅ„cu poniÅ¼szej listy!
+        .select('id, name, pos_x, pos_y, faction, is_npc, owner_id, npc_tier')
+        .gte('pos_x', minX).lte('pos_x', maxX) 
+        .gte('pos_y', minY).lte('pos_y', maxY); 
 
     if (error) {
-        console.error("B³¹d pobierania mapy:", error);
+        console.error("BÅ‚Ä…d pobierania mapy:", error);
         return [];
     }
     return data || [];

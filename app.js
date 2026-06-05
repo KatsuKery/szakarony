@@ -78,10 +78,13 @@ document.getElementById("btn-zaloguj").addEventListener("click", async () => {
     document.getElementById("sekcja-gra").style.display = "block";
     alert("Witaj w swojej osadzie!");
 
-    await sprawdzIGenerujNPC();
+    // POPRAWKA: Przekazujemy koordynaty przy pierwszym sprawdzeniu po logowaniu!
+    await sprawdzIGenerujNPC(stanGracza.wioska.pos_x, stanGracza.wioska.pos_y);
+    
     setInterval(async () => {
         if (stanGracza.id) {
-            await sprawdzIGenerujNPC();
+            // POPRAWKA: Przekazujemy koordynaty przy każdym kolejnym sprawdzeniu!
+            await sprawdzIGenerujNPC(stanGracza.wioska.pos_x, stanGracza.wioska.pos_y);
             const wiochy = await api.fetchNearbyVillages(stanGracza.wioska.pos_x, stanGracza.wioska.pos_y);
             const nowyHash = wygenerujHashMapy(stanGracza, wiochy);
             if (nowyHash !== ostatniHashMapy) {
@@ -114,43 +117,51 @@ async function odswiezDaneZ_Bazy() {
     if (!interwalProdukcji) odpalZegarProdukcji();
 
     if (!window.zegarSekundowyUI) {
+        let silnikPracuje = false; // <--- KŁÓDKA ZABEZPIECZAJĄCA PRZED DUBLOWANIEM
+
         window.zegarSekundowyUI = setInterval(async () => {
-            if (!stanGracza.id) return;
-            ui.aktualizujInterfejs(stanGracza);
+            if (!stanGracza.id || silnikPracuje) return; // Jeśli silnik liczy bitwę, czekamy!
+            silnikPracuje = true; // Zakładamy kłódkę
 
-            const vId = stanGracza.wioska.id;
-            const teraz = new Date();
-            let zaktualizowanoCos = false;
+            try {
+                ui.aktualizujInterfejs(stanGracza);
 
-            const doUkonczenia = stanGracza.kolejka.filter(q => new Date(q.finish_time) <= teraz);
-            if (doUkonczenia.length > 0) {
-                for (const q of doUkonczenia) {
-                    const aktualnyPoziom = stanGracza.budynki[q.building_type] || 0;
-                    await api.aktualizuj('village_buildings', { [q.building_type]: aktualnyPoziom + 1 }, 'village_id', vId);
-                    await api.usunZkolejki(q.id);
+                const vId = stanGracza.wioska.id;
+                const teraz = new Date();
+                let zaktualizowanoCos = false;
+
+                const doUkonczenia = stanGracza.kolejka.filter(q => new Date(q.finish_time) <= teraz);
+                if (doUkonczenia.length > 0) {
+                    for (const q of doUkonczenia) {
+                        const aktualnyPoziom = stanGracza.budynki[q.building_type] || 0;
+                        await api.aktualizuj('village_buildings', { [q.building_type]: aktualnyPoziom + 1 }, 'village_id', vId);
+                        await api.usunZkolejki(q.id);
+                    }
+                    zaktualizowanoCos = true;
                 }
-                zaktualizowanoCos = true;
-            }
 
-            const doUkonczeniaWojsko = stanGracza.kolejkaWojsko.filter(q => new Date(q.finish_time) <= teraz);
-            if (doUkonczeniaWojsko.length > 0) {
-                for (const q of doUkonczeniaWojsko) {
-                    const obecnaIlosc = stanGracza.jednostki[q.unit_type] || 0;
-                    await spClient.from('village_units').upsert({
-                        village_id: vId, unit_type: q.unit_type, quantity: obecnaIlosc + q.quantity
-                    }, { onConflict: 'village_id, unit_type' });
-                    await api.usunZkolejkiWojska(q.id);
+                const doUkonczeniaWojsko = stanGracza.kolejkaWojsko.filter(q => new Date(q.finish_time) <= teraz);
+                if (doUkonczeniaWojsko.length > 0) {
+                    for (const q of doUkonczeniaWojsko) {
+                        const obecnaIlosc = stanGracza.jednostki[q.unit_type] || 0;
+                        await spClient.from('village_units').upsert({
+                            village_id: vId, unit_type: q.unit_type, quantity: obecnaIlosc + q.quantity
+                        }, { onConflict: 'village_id,unit_type' }); // Usunięta spacja dla pewności
+                        await api.usunZkolejkiWojska(q.id);
+                    }
+                    zaktualizowanoCos = true;
                 }
-                zaktualizowanoCos = true;
-            }
 
-            // POPRAWKA: Przekazujemy ID Wioski, a nie ID Użytkownika
-            if (await sprawdzMaszerujaceWojska(stanGracza.wioska.id)) {
-                zaktualizowanoCos = true;
-            }
+                // POPRAWKA: Przekazujemy ID Wioski, a nie ID Użytkownika
+                if (await sprawdzMaszerujaceWojska(stanGracza.wioska.id)) {
+                    zaktualizowanoCos = true;
+                }
 
-            if (zaktualizowanoCos) {
-                await odswiezDaneZ_Bazy();
+                if (zaktualizowanoCos) {
+                    await odswiezDaneZ_Bazy();
+                }
+            } finally {
+                silnikPracuje = false; // Otwieramy kłódkę, gdy wszystko się skończy
             }
         }, 1000);
     }
@@ -221,7 +232,9 @@ window.wyslijAtak = async (targetVillageId) => {
 
     if (sukces) {
         await odswiezDaneZ_Bazy();
-        document.getElementById('detail-info').innerHTML = '<p style="color: #27ae60; font-weight: bold; font-size: 1.2em; text-align: center; padding: 20px;">Armia jest w drodze! <br>Spodziewaj się wieści wkrótce.</p>';
+        // Zaktualizowano okienko info po ataku (można to też wrzucić do Modala)
+        const oknoInfo = document.getElementById('detail-info');
+        if(oknoInfo) oknoInfo.innerHTML = '<p style="color: #27ae60; font-weight: bold; font-size: 1.2em; text-align: center; padding: 20px;">Armia jest w drodze! <br>Spodziewaj się wieści wkrótce.</p>';
     }
 };
 

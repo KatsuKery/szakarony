@@ -3,8 +3,8 @@
 const ROZMIAR_MAPY = 50; // Kafelki od 1 do 50
 const MAX_OBOZOW = 5;
 
-// Funkcja generująca tylko tyle obozów, ile każemy
-export async function rozsypObozyNPC(ilosc) {
+// Funkcja generująca obozy w zadanym promieniu od gracza
+export async function rozsypObozyNPC(ilosc, graczX, graczY) {
     const obozy = [];
     const nazwy = ["Obóz Bandytów", "Siedlisko Goblinów", "Krypta Nieumarłych", "Prastare Ruiny", "Jaskinia Trolla"];
 
@@ -12,9 +12,25 @@ export async function rozsypObozyNPC(ilosc) {
         const tier = Math.floor(Math.random() * 3) + 1; // Poziom 1-3
         const losowaNazwa = nazwy[Math.floor(Math.random() * nazwy.length)] + ` (Poziom ${tier})`;
 
-        // Losujemy w obszarze naszej siatki 50x50
-        const posX = Math.floor(Math.random() * ROZMIAR_MAPY) + 1;
-        const posY = Math.floor(Math.random() * ROZMIAR_MAPY) + 1;
+        let posX, posY;
+
+        // Losujemy dopóki nie wylosujemy poprawnego, pustego pola
+        do {
+            // Losujemy przesunięcie od -6 do +6
+            const offsetX = Math.floor(Math.random() * 13) - 6; 
+            const offsetY = Math.floor(Math.random() * 13) - 6; 
+
+            posX = graczX + offsetX;
+            posY = graczY + offsetY;
+
+            // Pilnujemy, żeby nie wyrzuciło obozu poza granice mapy (1-50)
+            if (posX < 1) posX = 1;
+            if (posX > ROZMIAR_MAPY) posX = ROZMIAR_MAPY;
+            if (posY < 1) posY = 1;
+            if (posY > ROZMIAR_MAPY) posY = ROZMIAR_MAPY;
+
+        // Powtarzaj losowanie, JEŚLI wylosowało dokładnie pole, na którym stoi gracz
+        } while (posX === graczX && posY === graczY); 
 
         obozy.push({
             name: losowaNazwa,
@@ -25,7 +41,7 @@ export async function rozsypObozyNPC(ilosc) {
             is_npc: true,
             npc_tier: tier,
             last_update: new Date().toISOString(),
-            owner_id: null // KLUCZOWA ZMIANA: Wyraźnie mówimy bazie, że to NPC i nie ma właściciela
+            owner_id: null // To jest NPC
         });
     }
 
@@ -33,12 +49,15 @@ export async function rozsypObozyNPC(ilosc) {
     if (error) {
         console.error("Błąd zapisu NPC w bazie:", error);
     } else {
-        console.log(`[NPC] Pomyślnie wygenerowano ${ilosc} nowych obozów.`);
+        console.log(`[NPC] Pomyślnie wygenerowano ${ilosc} nowych obozów wokół gracza.`);
     }
 }
 
 // Główna funkcja zarządzająca respawnem
-export async function sprawdzIGenerujNPC() {
+export async function sprawdzIGenerujNPC(graczX, graczY) {
+    // Zabezpieczenie: jeśli nie przekazaliśmy koordynatów, przerywamy
+    if (!graczX || !graczY) return; 
+
     // Sprawdzamy ile obozów żyje w bazie
     const { count, error } = await spClient
         .from('villages')
@@ -53,7 +72,7 @@ export async function sprawdzIGenerujNPC() {
     if (obecnaIlosc < MAX_OBOZOW) {
         const brakuje = MAX_OBOZOW - obecnaIlosc;
         console.log(`[System Respawn] Obozów: ${obecnaIlosc}/${MAX_OBOZOW}. Odradzam ${brakuje}...`);
-        await rozsypObozyNPC(brakuje);
+        await rozsypObozyNPC(brakuje, graczX, graczY);
     } else {
         console.log(`[System Respawn] Mapa stabilna (obozów: ${obecnaIlosc}/${MAX_OBOZOW}).`);
     }

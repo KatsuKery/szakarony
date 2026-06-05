@@ -218,10 +218,8 @@ export function renderujMape(stan, listaWioch, klikFn) {
     const mapGrid = document.getElementById('map-grid');
     if (!mapGrid) return;
 
-    // DEBUG: Tu sprawdzisz, czy NPC docierają do UI
-    console.log("RENDER MAPY - Lista wiosek:", listaWioch);
-
-    const radius = 20;
+    // Pobieramy 15-polowy zasięg (Viewport)
+    const radius = 7; 
     const columns = radius * 2 + 1;
     mapGrid.style.gridTemplateColumns = `repeat(${columns}, 50px)`;
 
@@ -243,7 +241,6 @@ export function renderujMape(stan, listaWioch, klikFn) {
             }
             else if (wioska) {
                 if (wioska.is_npc) {
-                    console.log(`Rysuję NPC na ${x},${y}`);
                     cell.classList.add('npc-camp');
                     cell.textContent = wioska.npc_tier === 1 ? "🔥" : (wioska.npc_tier === 2 ? "🏕️" : "💀");
                     cell.style.border = "2px solid #e67e22";
@@ -266,36 +263,36 @@ export function renderujMape(stan, listaWioch, klikFn) {
     }
 }
 
+// FUNKCJA OBSŁUGI MODALA (PŁYWAJĄCEGO OKNA) MAPY
 export function pokazSzczegolyPola(x, y, wioska, stanGracza) {
-    const detailInfo = document.getElementById('detail-info');
-    if (!detailInfo) return;
+    const modalOverlay = document.getElementById('modal-overlay');
+    const modalTresc = document.getElementById('modal-tresc');
+    if (!modalOverlay || !modalTresc) return;
 
     if (!wioska) {
-        detailInfo.innerHTML = `
-            <div style="padding: 15px; background: rgba(0,0,0,0.6); color: white; border-radius: 5px;">
-                <h3 style="margin-top:0;">Dzika głusza (${x} | ${y})</h3>
-                <p>Niezbadany i pusty teren.</p>
-            </div>
+        modalTresc.innerHTML = `
+            <h2 style="margin-top:0; color: #95a5a6;">Dzika głusza</h2>
+            <p style="color: #7f8c8d;">Koordynaty: ${x} | ${y}</p>
+            <p>Niezbadany i pusty teren. Być może kiedyś ktoś tu osiądzie.</p>
         `;
+        ukazModal(modalOverlay);
         return;
     }
 
-    // POPRAWKA: Porównujemy Village ID (village.id) z Village ID (stanGracza.wioska.id)
     if (wioska.id === stanGracza.wioska.id) {
-        detailInfo.innerHTML = `
-            <div style="padding: 15px; background: rgba(39, 174, 96, 0.8); color: white; border-radius: 5px;">
-                <h3 style="margin-top:0;">Twoja Osada: ${wioska.name}</h3>
-                <p>Koordynaty: ${x} | ${y}</p>
-            </div>
+        modalTresc.innerHTML = `
+            <h2 style="margin-top:0; color: #2ecc71;">Twoja Osada: ${wioska.name}</h2>
+            <p style="color: #7f8c8d;">Koordynaty: ${x} | ${y}</p>
+            <p>Domowe ognisko. Rozbudowuj budynki i rekrutuj potężną armię.</p>
         `;
+        ukazModal(modalOverlay);
         return;
     }
 
-    let kolorTla = wioska.is_npc ? "rgba(230, 126, 34, 0.8)" : "rgba(192, 57, 43, 0.8)";
-    let naglowek = wioska.is_npc ? `Obóz Potworów: ${wioska.name}` : `Wrogie Państwo: ${wioska.name}`;
-    let typCelu = wioska.is_npc ? `Potwory (Poziom ${wioska.npc_tier})` : `Frakcja: ${wioska.faction}`;
+    let naglowek = wioska.is_npc ? `<span style="color: #e67e22;">Obóz: ${wioska.name}</span>` : `<span style="color: #e74c3c;">Wróg: ${wioska.name}</span>`;
+    let typCelu = wioska.is_npc ? `Poziom Trudności: ${wioska.npc_tier}` : `Frakcja: ${wioska.faction}`;
 
-    let panelWojska = `<h4 style="margin-bottom: 5px;">Przygotuj armię:</h4><div style="background: rgba(255,255,255,0.1); padding: 10px; border-radius: 5px; margin-bottom: 10px;">`;
+    let panelWojska = `<h4 style="margin-bottom: 10px; border-bottom: 1px solid #7f8c8d; padding-bottom: 5px;">Zgrupowanie Wojsk:</h4>`;
     let jestWojsko = false;
 
     for (const [kod, jednostkaKonto] of Object.entries(stanGracza.jednostki || {})) {
@@ -303,29 +300,58 @@ export function pokazSzczegolyPola(x, y, wioska, stanGracza) {
             jestWojsko = true;
             const nazwaJednostki = BALANS_JEDNOSTEK[kod]?.name || kod;
             panelWojska += `
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                    <span>${nazwaJednostki} <small>(Max: ${jednostkaKonto})</small>:</span>
-                    <input type="number" id="wyslij-${kod}" value="0" min="0" max="${jednostkaKonto}" style="width: 50px; text-align: center;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; background: rgba(0,0,0,0.3); padding: 5px 10px; border-radius: 4px;">
+                    <span style="font-weight: bold;">${nazwaJednostki} <small style="color: #95a5a6;">(Max: ${jednostkaKonto})</small>:</span>
+                    <div>
+                        <input type="number" id="wyslij-${kod}" value="0" min="0" max="${jednostkaKonto}" style="width: 60px; text-align: center; border: 1px solid #7f8c8d; background: #2c3e50; color: white; border-radius: 3px;">
+                        <span onclick="document.getElementById('wyslij-${kod}').value = ${jednostkaKonto}" style="cursor: pointer; color: #3498db; margin-left: 5px; font-weight: bold;">MAX</span>
+                    </div>
                 </div>
             `;
         }
     }
 
     if (!jestWojsko) {
-        panelWojska += `<p style="color: #f1c40f;">Nie masz armii!</p>`;
+        panelWojska += `<p style="color: #e74c3c; font-style: italic; text-align: center;">Nie posiadasz armii zdolnej do walki!</p>`;
     }
-    panelWojska += `</div>`;
 
-    detailInfo.innerHTML = `
-        <div style="padding: 15px; background: ${kolorTla}; color: white; border-radius: 5px;">
-            <h3 style="margin-top:0;">${naglowek}</h3>
-            <p style="margin: 5px 0;">Typ: <strong>${typCelu}</strong></p>
-            ${panelWojska}
-            ${jestWojsko ? `
-                <button onclick="window.wyslijAtak('${wioska.id}')" style="width: 100%; padding: 10px; background: #c0392b; color: white; border: none; font-weight: bold; cursor: pointer;">
-                    ⚔️ WYŚLIJ ATAK ⚔️
-                </button>
-            ` : ''}
-        </div>
+    modalTresc.innerHTML = `
+        <h2 style="margin-top:0;">${naglowek}</h2>
+        <p style="color: #95a5a6;">Koordynaty: ${x} | ${y} &bull; ${typCelu}</p>
+        ${panelWojska}
+        ${jestWojsko ? `
+            <button onclick="window.wyslijAtak('${wioska.id}'); document.getElementById('modal-overlay').style.display='none';" 
+                    style="width: 100%; padding: 12px; background: #c0392b; color: white; border: 1px solid #e74c3c; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 1.1em; transition: 0.2s; margin-top: 15px;">
+                ⚔️ WYŚLIJ ARMIE W BÓJ ⚔️
+            </button>
+        ` : ''}
     `;
+
+    ukazModal(modalOverlay);
 }
+
+// LOGIKA POKAZYWANIA I ZAMYKANIA MODALA
+function ukazModal(modal) {
+    modal.style.display = 'flex';
+}
+
+// Obsługa przycisku "X" i kliknięcia w tło modala
+document.addEventListener("DOMContentLoaded", () => {
+    const btnZamknij = document.getElementById("modal-zamknij");
+    const modalOverlay = document.getElementById("modal-overlay");
+
+    if (btnZamknij) {
+        btnZamknij.addEventListener("click", () => {
+            modalOverlay.style.display = "none";
+        });
+    }
+
+    if (modalOverlay) {
+        modalOverlay.addEventListener("click", (e) => {
+            // Jeśli klikniemy bezpośrednio w ciemne tło (a nie w zawartość), zamknij
+            if (e.target === modalOverlay) {
+                modalOverlay.style.display = "none";
+            }
+        });
+    }
+});
